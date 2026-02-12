@@ -1,13 +1,5 @@
 flask
 requests
 openai
-yt-dlp
-moviepy
-librosa
-openai-whisper
-numpy
-torch; sys_platform != 'win32'
-torchvision; sys_platform != 'win32'
-torchaudio; sys_platform != 'win32'
-pydantic
 python-dotenv
+gunicorn
