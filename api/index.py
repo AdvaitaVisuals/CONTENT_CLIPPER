@@ -220,6 +220,11 @@ def handle_universal(text, sender, source, use_cloud=False):
     if os.environ.get("VERCEL"):
         use_cloud = True
 
+    # LOG TO DB - ALWAYS, for chat sync (storing msg in 'url' field and reply in 'status' for sync)
+    if not project_id:
+        from api.factory_graph import log_to_db # Ensure import for pure chat logging
+        log_to_db(source, sender, text, f"CHAT_{int(time.time())}", status=response)
+
     # If a new project was started
     if project_id:
         if use_cloud:
@@ -227,19 +232,21 @@ def handle_universal(text, sender, source, use_cloud=False):
             if os.environ.get("VERCEL"):
                 # VERCEL FIX: Run Synchronously! Background threads die instantly on Serverless.
                 print("⚡ [VERCEL] Running Vizard Submission Synchronously...")
-                response += "\n(Wait... Submitting to Cloud...)"
+                # Update status with current response for the logger
+                update_db_task(project_id, response) 
                 run_vizard_processor(project_id, url, sender)
             else:
                 start_processing_thread(project_id, sender, url, use_cloud)
         else:
             if os.environ.get("VERCEL"):
                 response += "\n\n⚠️ Local Engine blocked on Vercel. Using Cloud."
-                run_vizard_processor(project_id, url, sender) # Force Sync for fallback too
+                update_db_task(project_id, response)
+                run_vizard_processor(project_id, url, sender)
             else:
                 response += "\n\n(🚜 Using Local Engine)"
                 start_processing_thread(project_id, sender, url, use_cloud=False)
     
-    print(f"🤖 [CHELA]: {response}")
+    print(f"🤖 [{source}] replying to {sender}: {response[:50]}...")
     return response
 
 # --- DASHBOARD UI ---
@@ -437,15 +444,15 @@ HTML_UI = """
             const data = await r.json();
             
             data.forEach(t => {
-                if(t.status === 'processing' && t.provider === 'vizard') fetch('/api/sync_vizard/' + t.project_id);
+                const statusClass = t.status.split(':')[0].trim().toLowerCase();
+                if(statusClass === 'processing' && t.provider === 'vizard') fetch('/api/sync_vizard/' + t.project_id);
             });
 
             document.getElementById('log-body').innerHTML = data.map(t => {
                 let progress = 0;
                 let statusClass = t.status.split(':')[0].trim().toLowerCase();
                 if(statusClass === 'completed') progress = 100;
-                else if(statusClass === 'processing') progress = 45; 
-                else if(statusClass === 'submitting') progress = 15;
+                else if(statusClass === 'processing' || statusClass === 'submitting') progress = 45; 
                 
                 return `
                 <tr>
@@ -464,6 +471,26 @@ HTML_UI = """
                     </td>
                 </tr>
             `}).join('');
+        }
+
+        let lastChatCount = 0;
+        async function refreshChats() {
+            const r = await fetch('/api/recent_chats');
+            const data = await r.json();
+            const box = document.getElementById('chat-msgs');
+            
+            // Only re-render if count changed to avoid flickering
+            if(data.length === lastChatCount) return;
+            lastChatCount = data.length;
+
+            box.innerHTML = data.map(c => `
+                <div class="msg user" style="${c.sender === 'Admin_Web' ? '' : 'background: #333'}">
+                    <div style="font-size:10px; opacity:0.6; margin-bottom:4px;">${c.sender} (${c.source})</div>
+                    ${c.msg_text}
+                </div>
+                <div class="msg ai">${c.ai_reply}</div>
+            `).join('');
+            box.scrollTop = box.scrollHeight;
         }
 
         async function refreshClips() {
@@ -522,8 +549,10 @@ HTML_UI = """
 
         setInterval(() => { 
             if(document.getElementById('p-dash').style.display!='none') refresh(); 
-        }, 10000);
+            refreshChats();
+        }, 5000);
         refresh();
+        refreshChats();
     </script>
 </body>
 </html>
@@ -626,6 +655,20 @@ def webhook():
         traceback.print_exc()
 
     return "OK", 200
+
+@app.route("/api/recent_chats", methods=["GET"])
+def get_recent_chats():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        # Fetch last 50 interactions, including those without URLs (pure chats)
+        cur.execute("SELECT sender, source, url as msg_text, status as ai_reply, timestamp FROM tasks ORDER BY timestamp DESC LIMIT 50")
+        data = [dict(row) for row in cur.fetchall()]
+        conn.close()
+        return jsonify(data[::-1]) # Return in chronological order for chat
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/delete_task/<project_id>", methods=["DELETE"])
 def delete_task(project_id):
