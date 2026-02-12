@@ -8,11 +8,20 @@ import sqlite3
 from flask import Flask, request, jsonify, render_template_string, send_from_directory
 from openai import OpenAI
 
+import sys
+# Add project root to sys.path so we can import 'agents'
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 # LangGraph Integration
 try:
-    from .factory_graph import run_factory_agent
+    from api.factory_graph import run_factory_agent
 except ImportError:
-    from factory_graph import run_factory_agent
+    try:
+        from factory_graph import run_factory_agent
+    except ImportError:
+        # Last resort for direct execution
+        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+        from api.factory_graph import run_factory_agent
 
 app = Flask(__name__)
 

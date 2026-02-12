@@ -103,9 +103,12 @@ class ViralCutterAgent:
 
     def _create_chorus_clip(self, chorus_time: float, segments: list) -> ClipSpec:
         """Chorus clip - Increased duration"""
+        # If chorus_time is a list, take the first one or iterate (simplified here to take first)
+        start_t = chorus_time[0] if isinstance(chorus_time, list) else chorus_time
+        
         return ClipSpec(
-             start_time=max(0, chorus_time),
-             end_time=chorus_time + 35,
+             start_time=max(0, start_t),
+             end_time=start_t + 35,
              hook_line="Chorus Loop",
              target_audience="general",
              viral_reason="Repetitive catchy chorus",

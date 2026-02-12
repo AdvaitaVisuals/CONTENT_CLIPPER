@@ -89,53 +89,80 @@ export const InstaReel: React.FC<InstaReelProps> = ({
   hookLine,
 }) => {
   const { fps } = useVideoConfig();
-  const clipDurationSec = endTimeSec - startTimeSec;
 
+  // Convert Whisper words to Remotion Caption format, offset to clip start
+  const captions: Caption[] = useMemo(() => {
+    return words
+      .filter((w) => w.start >= startTimeSec && w.start < endTimeSec)
+      .map((w) => ({
+        text: w.word,
+        startMs: (w.start - startTimeSec) * 1000,
+        endMs: (w.end - startTimeSec) * 1000,
+        confidence: 1,
+        timestampMs: null,
+      }));
+  }, [words, startTimeSec, endTimeSec]);
 
+  const { pages } = useMemo(() => {
+    return createTikTokStyleCaptions({
+      captions,
+      combineTokensWithinMilliseconds: SWITCH_CAPTIONS_EVERY_MS,
+    });
+  }, [captions]);
 
-
-  {/* Captions layer */ }
-  {
-    pages.map((page, index) => {
-      return (
-        <Sequence
-          key={index}
-          from={page.startMs * (fps / 1000)}
-          durationInFrames={page.durationMs * (fps / 1000)}
-        >
-          <CaptionPage page={page} />
-        </Sequence>
-      );
-    })
-  }
-
-  {/* Optional: Hook Line layer (Desi style overlay at the top) */ }
-  {
-    hookLine && (
-      <AbsoluteFill
+  return (
+    <AbsoluteFill style={{ backgroundColor: "black" }}>
+      {/* Video layer - cropped to 9:16 center */}
+      <Video
+        src={staticFile(videoSrc)}
         style={{
-          justifyContent: "flex-start",
-          alignItems: "center",
-          paddingTop: 150,
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          objectPosition: "center center",
         }}
-      >
-        <div
+        trimBefore={startTimeSec * fps}
+        trimAfter={endTimeSec * fps}
+      />
+
+      {/* Captions layer */}
+      {pages.map((page, index) => {
+        return (
+          <Sequence
+            key={index}
+            from={(page.startMs / 1000) * fps}
+            durationInFrames={(page.durationMs / 1000) * fps}
+          >
+            <CaptionPage page={page} />
+          </Sequence>
+        );
+      })}
+
+      {/* Optional: Hook Line layer (Desi style overlay at the top) */}
+      {hookLine && (
+        <AbsoluteFill
           style={{
-            background: "rgba(255, 61, 0, 0.9)",
-            padding: "10px 30px",
-            borderRadius: "50px",
-            color: "white",
-            fontSize: 50,
-            fontWeight: 900,
-            border: "4px solid white",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+            justifyContent: "flex-start",
+            alignItems: "center",
+            paddingTop: 150,
           }}
         >
-          {hookLine}
-        </div>
-      </AbsoluteFill>
-    )
-  }
-    </AbsoluteFill >
+          <div
+            style={{
+              background: "rgba(255, 61, 0, 0.9)",
+              padding: "10px 30px",
+              borderRadius: "50px",
+              color: "white",
+              fontSize: 50,
+              fontWeight: 900,
+              border: "4px solid white",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+            }}
+          >
+            {hookLine}
+          </div>
+        </AbsoluteFill>
+      )}
+    </AbsoluteFill>
   );
 };
