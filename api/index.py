@@ -163,7 +163,7 @@ HTML_UI = """
             
             <!-- Dashboard Home -->
             <div id="section-dash" class="section active">
-                <h1 style="font-size: 36px; font-weight: 800; margin-bottom: 30px;">Ram Ram ji! 👋</h1>
+                <h1 style="font-size: 36px; font-weight: 800; margin-bottom: 30px;">Ram Ram Bhai! 👋</h1>
                 <div class="dash-grid">
                     <div class="dash-card" onclick="showSection('factory')">
                         <i class="fas fa-video"></i>
@@ -229,7 +229,7 @@ HTML_UI = """
                 Biru Bhai ka Chela
             </div>
             <div id="chat-messages">
-                <div class="msg ai">Aapka swagat hai! 👋 Main Biru Bhai ka chela hoon. Aapka hukum kya hai?</div>
+                <div class="msg ai">Ram Ram Bhai! 👋 Main Biru Bhai ka chela hoon. Aap batao kya kaam karna hai?</div>
             </div>
             <div class="chat-input">
                 <input type="text" id="c-input" placeholder="Kuch poochiye..." onkeypress="handleEnter(event)">
@@ -331,28 +331,28 @@ def send_wa_message(to, text):
 def handle_logic(text):
     if text.startswith("/cut"):
         if not VIZARD_API_KEY:
-            return "❌ Maaf kijiye, Vizard API Key missing hai. Aap admin se sampark karein."
+            return "❌ Bhai, Vizard API Key nahi mil rahi. Admin se bolo."
         parts = text.split()
         url = parts[1] if len(parts) > 1 else ""
         if not url:
-            return "❌ Aap kripya link toh bhejिये!"
+            return "❌ Bhai, pehle link toh bhej!"
         try:
             vizard = VizardAgent(api_key=VIZARD_API_KEY)
             project_id = vizard.submit_video(url)
             if project_id:
-                return f"🚀 **Hukum sar aankhon par!**\\nAapka video maine Biru Bhai ki factory mein bhej diya hai.\\n**Project ID:** `{project_id}`"
+                return f"🚀 **Bhai, factory shuru!**\\nVideo bhej diya hai. Project ID: `{project_id}`"
             else:
-                return "❌ Maaf kijiye, submission fail ho gaya."
+                return "❌ Bhai, link bhenjne mein dikakat aayi hai."
         except Exception as e:
             return f"❌ Error: {str(e)}"
     
-    if not OPENAI_API_KEY: return "Ram Ram! Dashboard active hai, par chat ke liye OpenAI key mang rahi hai."
+    if not OPENAI_API_KEY: return "Ram Ram Bhai! OpenAI key nahi hai, chat kaise karun?"
     try:
         client = OpenAI(api_key=OPENAI_API_KEY)
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are 'Biru Bhai ka Chela', the chief operator of Biru Bhai's Viral Video Factory. Your tone is extremely respectful (always use 'Aap') with a loyal Desi/Haryanvi touch. \n\nYOUR RESPONSIBILITIES:\n1. Your primary job is to take long videos (YouTube/Social links) and turn them into 5-10 viral clips using the command `/cut <URL>`.\n2. When asked 'aap kya kar sakte ho' or about your work, explicitly tell the user that you can extract viral clips from any video link they provide using Biru Bhai's factory tools.\n3. You are a content creation specialist. You analyze videos, find the best moments, and help users go viral.\n4. Always be helpful, polite, and refer to Biru Bhai as the boss.\n\nExample Response: 'Hukum, aap mujhe koi bhi YouTube link dijiye, main usse 5-10 viral clips nikal kar Biru Bhai ki factory mein abhi process karwa dunga. Aap batayein, kya kaam shuru karein?'"},
+                {"role": "system", "content": "You are 'Biru Bhai ka Chela'. Your tone is respectful (use 'Aap') with a Desi/Haryanvi touch. \n\nRULES:\n1. Address the user as 'Bhai'. Example: 'Bhai, batao kya kaam karna hai?'\n2. Keep messages VERY SHORT. No long explanations.\n3. NO URDU words. Use pure Hindi/Desi words. Avoid 'Hukum', 'Maaf', 'Mubarak', etc.\n4. Your main job is converting video links into 5-10 viral clips using `/cut <URL>`.\n5. Always be ready for work. 'Bhai, bas kaam batao.'"},
                 {"role": "user", "content": text}
             ]
         )
