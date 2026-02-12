@@ -52,8 +52,8 @@ class VizardAgent:
             "lang": "auto",
             "preferLength": [0],  # Auto length
             "projectName": project_name,
-            "subtitleSwitch": 1,
-            "headlineSwitch": 1
+            "subtitleSwitch": 0,
+            "headlineSwitch": 0
         }
 
         # Add file extension for remote files

@@ -185,13 +185,11 @@ class ViralCutterAgent:
         if len(display_text) > 30:
             display_text = display_text[:27] + "..."
             
-        # Video Filters: Crop -> Scale -> Color Grade -> Text Overlay
+        # Video Filters: Crop -> Scale -> Color Grade (CLEAN - NO TEXT)
         video_filters = (
             f"crop=ih*(9/16):ih,scale=720:1280,"
             f"eq=contrast=1.2:saturation=1.4:brightness=0.02,"
-            f"unsharp=3:3:1.5:3:3:0.5,"
-            f"drawtext=fontfile='{font_path}':text='{display_text}':fontcolor=yellow:fontsize=48:x=(w-text_w)/2:y=120:"
-            f"box=1:boxcolor=black@0.6:boxborderw=10:borderw=2:bordercolor=black"
+            f"unsharp=3:3:1.5:3:3:0.5"
         )
         
         cmd = [

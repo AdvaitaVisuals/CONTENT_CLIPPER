@@ -125,7 +125,7 @@ export const InstaReel: React.FC<InstaReelProps> = ({
         trimAfter={endTimeSec * fps}
       />
 
-      {/* Captions layer */}
+      {/* Captions layer - DISABLED
       {pages.map((page, index) => {
         return (
           <Sequence
@@ -136,9 +136,8 @@ export const InstaReel: React.FC<InstaReelProps> = ({
             <CaptionPage page={page} />
           </Sequence>
         );
-      })}
-
-      {/* Optional: Hook Line layer (Desi style overlay at the top) */}
+      })} */}
+      \n      {/* Optional: Hook Line layer (Desi style overlay at the top) - DISABLED
       {hookLine && (
         <AbsoluteFill
           style={{
@@ -162,7 +161,7 @@ export const InstaReel: React.FC<InstaReelProps> = ({
             {hookLine}
           </div>
         </AbsoluteFill>
-      )}
+      )} */}
     </AbsoluteFill>
   );
 };
