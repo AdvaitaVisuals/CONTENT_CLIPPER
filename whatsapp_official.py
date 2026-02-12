@@ -4,7 +4,8 @@ import subprocess
 import shutil
 from flask import Flask, request, jsonify
 from openai import OpenAI
-from agents import UnderstandingAgent, ViralCutterAgent
+from agents.understanding_agent import UnderstandingAgent
+from agents.viral_cutter_agent import ViralCutterAgent
 from dotenv import load_dotenv
 
 load_dotenv()
