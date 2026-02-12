@@ -217,13 +217,20 @@ def handle_universal(text, sender, source, use_cloud=False):
     if project_id:
         if use_cloud:
             response += "\n\n(☁️ Charging into Cloud Engine - Vizard AI)"
+            if os.environ.get("VERCEL"):
+                # VERCEL FIX: Run Synchronously! Background threads die instantly on Serverless.
+                print("⚡ [VERCEL] Running Vizard Submission Synchronously...")
+                response += "\n(Wait... Submitting to Cloud...)"
+                run_vizard_processor(project_id, url, sender)
+            else:
+                start_processing_thread(project_id, sender, url, use_cloud)
         else:
             if os.environ.get("VERCEL"):
                 response += "\n\n⚠️ Local Engine blocked on Vercel. Using Cloud."
+                run_vizard_processor(project_id, url, sender) # Force Sync for fallback too
             else:
                 response += "\n\n(🚜 Using Local Engine)"
-        
-        start_processing_thread(project_id, sender, url, use_cloud)
+                start_processing_thread(project_id, sender, url, use_cloud=False)
     
     print(f"🤖 [CHELA]: {response}")
     return response
