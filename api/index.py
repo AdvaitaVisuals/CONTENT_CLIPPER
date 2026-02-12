@@ -63,10 +63,11 @@ def update_db_task(project_id, status, clips=None, provider=None, external_id=No
         cursor = conn.cursor()
         
         final_status = status
-        if error_msg:
-            final_status = f"failed: {str(error_msg)[:100]}"
+        if error_msg is not None:
+            # Always ensure 'failed:' prefix for error states to trigger UI display
+            msg = str(error_msg) if error_msg else "Unknown Error"
+            final_status = f"failed: {msg[:200]}"
             
-        # Dynamically build the UPDATE query
         fields = ["status=?"]
         params = [final_status]
         
@@ -612,13 +613,11 @@ def get_tasks():
         conn.close()
         
         # PROACTIVE SYNC: Trigger Vizard check if needed
-        # Since we're in a browser polling loop, we can trigger background syncs
-        import requests
+        base_url = f"http://{request.host}"
         for t in data:
             status_clean = str(t['status']).split(':')[0].lower()
             if t['provider'] == 'vizard' and status_clean not in ('completed', 'failed'):
-                 # Check locally if it's running 
-                 threading.Thread(target=requests.get, args=(f"http://localhost:5000/api/sync_vizard/{t['project_id']}",)).start()
+                 threading.Thread(target=requests.get, args=(f"{base_url}/api/sync_vizard/{t['project_id']}",)).start()
 
         return jsonify(data)
     except Exception as e:
