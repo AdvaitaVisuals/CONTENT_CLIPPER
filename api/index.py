@@ -360,6 +360,32 @@ def handle_logic(text):
     except Exception as e:
         return f"Maaf kijiye, chela error de gaya: {str(e)}"
 
+def get_media_url(media_id):
+    url = f"https://graph.facebook.com/v21.0/{media_id}"
+    headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}"}
+    r = requests.get(url, headers=headers)
+    return r.json().get("url")
+
+def download_media(media_url, save_path):
+    headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}"}
+    r = requests.get(media_url, headers=headers)
+    with open(save_path, "wb") as f:
+        f.write(r.content)
+
+def transcribe_audio(file_path):
+    if not OPENAI_API_KEY: return None
+    try:
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        audio_file = open(file_path, "rb")
+        transcript = client.audio.transcriptions.create(
+            model="whisper-1", 
+            file=audio_file
+        )
+        return transcript.text
+    except Exception as e:
+        print(f"Transcription Error: {e}")
+        return None
+
 # --- ROUTES ---
 @app.route("/", methods=["GET"])
 def index():
@@ -380,14 +406,39 @@ def webhook():
         if mode == "subscribe" and token == VERIFY_TOKEN:
             return challenge, 200
         return "Forbidden", 403
+
     data = request.json
     try:
         value = data.get("entry", [{}])[0].get("changes", [{}])[0].get("value", {})
         if "messages" in value:
             msg = value["messages"][0]
-            reply = handle_logic(msg.get("text", {}).get("body", ""))
-            send_wa_message(msg["from"], reply)
-    except: pass
+            sender = msg["from"]
+            
+            # 1. HANDLE VOICE NOTE
+            if "audio" in msg:
+                audio_id = msg["audio"]["id"]
+                media_url = get_media_url(audio_id)
+                if media_url:
+                    # Save temporarily in /tmp for Vercel
+                    temp_path = f"/tmp/{audio_id}.ogg"
+                    download_media(media_url, temp_path)
+                    text = transcribe_audio(temp_path)
+                    if text:
+                        reply = handle_logic(text)
+                        send_wa_message(sender, f"🎤 *Voice Note:* _{text}_\\n\\n{reply}")
+                    else:
+                        send_wa_message(sender, "❌ Maaf kijiye hukum, main aapki awaaz samajh nahi pa raha hoon.")
+                    if os.path.exists(temp_path): os.remove(temp_path)
+                else:
+                    send_wa_message(sender, "❌ Maaf kijiye, audio download nahi ho paya.")
+
+            # 2. HANDLE TEXT
+            elif "text" in msg:
+                text = msg.get("text", {}).get("body", "")
+                reply = handle_logic(text)
+                send_wa_message(sender, reply)
+    except Exception as e: 
+        print(f"Webhook Error: {e}")
     return "OK", 200
 
 if __name__ == "__main__":
