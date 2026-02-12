@@ -81,6 +81,13 @@ init_db()
 # --- VIZARD PROCESSING (CLOUD) ---
 def run_vizard_processor(project_id, url, sender):
     print(f"☁️ [FACTORY] Submitting to Vizard AI: {project_id}")
+    
+    # VALIDATE API KEY
+    if not VIZARD_API_KEY or "9658587" in VIZARD_API_KEY: # Check against placeholder
+        print("❌ [CONFIG ERROR] Vizard API Key missing or default.")
+        update_db_task(project_id, "failed", error_msg="MISSING VIZARD API KEY")
+        return
+
     try:
         from agents.vizard_agent import VizardAgent
         agent = VizardAgent(api_key=VIZARD_API_KEY)
@@ -93,7 +100,7 @@ def run_vizard_processor(project_id, url, sender):
             update_db_task(project_id, "processing", provider="vizard", external_id=vizard_id)
         else:
             print(f"❌ [VIZARD] Failed to submit.")
-            update_db_task(project_id, "failed", error_msg="API Submission Failed")
+            update_db_task(project_id, "failed", error_msg="API Submission Failed (Check Key/Quota)")
             
     except Exception as e:
         print(f"❌ [VIZARD ERROR] {e}")
