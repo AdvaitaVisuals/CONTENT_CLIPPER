@@ -476,13 +476,17 @@ HTML_UI = """
             const data = await r.json();
             
             data.forEach(t => {
-                const statusClass = t.status.split(':')[0].trim().toLowerCase();
-                if(statusClass === 'processing' && t.provider === 'vizard') fetch('/api/sync_vizard/' + t.project_id);
+                const statusBase = t.status.split(':')[0].trim().toLowerCase();
+                if(statusBase === 'processing' && t.provider === 'vizard') fetch('/api/sync_vizard/' + t.project_id);
             });
 
             document.getElementById('log-body').innerHTML = data.map(t => {
                 let progress = 0;
-                let statusClass = t.status.split(':')[0].trim().toLowerCase();
+                let statusParts = t.status.split(':');
+                let statusMain = statusParts[0].trim().toUpperCase();
+                let statusError = statusParts.length > 1 ? statusParts.slice(1).join(':').trim() : "";
+                
+                let statusClass = statusMain.toLowerCase();
                 if(statusClass === 'completed') progress = 100;
                 else if(statusClass === 'processing' || statusClass === 'submitting') progress = 45; 
                 
@@ -493,7 +497,8 @@ HTML_UI = """
                     <td>${t.provider ? t.provider.toUpperCase() : 'LOCAL'}</td>
                     <td><a href="${t.url}" target="_blank" style="color:var(--dim); text-decoration:none; font-size:11px;">${t.url.substring(0,25)}...</a><br><code>${t.project_id}</code></td>
                     <td>
-                        <span class="badge ${statusClass}">${t.status}</span>
+                        <span class="badge ${statusClass}">${statusMain}</span>
+                        ${statusError ? `<div class="error-msg">${statusError}</div>` : ''}
                         ${statusClass === 'processing' || statusClass === 'submitting' ? `
                         <div class="progress-container"><div class="progress-bar" style="width: ${progress}%"></div></div>
                         ` : ''}
