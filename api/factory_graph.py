@@ -34,7 +34,8 @@ def log_to_db(source, sender, url, project_id, status='processing', provider=Non
                        (source, sender, url, project_id, status, provider))
         conn.commit()
         conn.close()
-    except: pass
+    except Exception as e:
+        print(f"❌ [DB LOG ERROR] {e}")
 
 # --- NODES ---
 

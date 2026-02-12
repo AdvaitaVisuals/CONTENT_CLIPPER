@@ -94,12 +94,13 @@ init_db()
 
 # --- VIZARD PROCESSING (CLOUD) ---
 def run_vizard_processor(project_id, url, sender):
+    import traceback
     print(f"☁️ [FACTORY] Submitting to Vizard AI: {project_id}")
     
     # VALIDATE API KEY
     if not VIZARD_API_KEY:
         print("❌ [CONFIG ERROR] Vizard API Key missing.")
-        update_db_task(project_id, "failed", error_msg="MISSING VIZARD API KEY - Set in Vercel Env Vars")
+        update_db_task(project_id, "failed", error_msg="MISSING VIZARD_API_KEY. Add it to Vercel Environment Variables.")
         return
 
     try:
@@ -114,21 +115,24 @@ def run_vizard_processor(project_id, url, sender):
             update_db_task(project_id, "processing", provider="vizard", external_id=vizard_id)
         else:
             print(f"❌ [VIZARD] Failed to submit.")
-            update_db_task(project_id, "failed", error_msg="API Submission Failed (Check Key/Quota)")
+            update_db_task(project_id, "failed", error_msg="Vizard API rejected submission (Check Quota/URL)")
             
     except Exception as e:
-        print(f"❌ [VIZARD ERROR] {e}")
-        update_db_task(project_id, "failed", error_msg=str(e))
+        traceback.print_exc()
+        err_msg = f"{type(e).__name__}: {str(e)}"
+        print(f"❌ [VIZARD ERROR] {err_msg}")
+        update_db_task(project_id, "failed", error_msg=err_msg)
 
 # --- LOCAL PROCESSING LOGIC (Full 8-Agent Pipeline) ---
 def run_local_processor(project_id, url, sender):
+    import traceback
     print(f"🚜 [FACTORY] Starting Full 8-Agent Pipeline: {project_id}")
     update_db_task(project_id, "processing", provider="local")
 
     try:
         if os.environ.get("VERCEL"):
             print("❌ [FAIL] Cannot run Local Engine on Vercel. Use Vizard Mode.")
-            update_db_task(project_id, "failed", error_msg="Local Engine Blocked on Vercel")
+            update_db_task(project_id, "failed", error_msg="Local Engine Blocked on Vercel. Please use Cloud Mode.")
             return
 
         from orchestrator import ArtistOrchestrator
@@ -166,8 +170,10 @@ def run_local_processor(project_id, url, sender):
             update_db_task(project_id, "failed", error_msg=errors)
 
     except Exception as e:
-        print(f"❌ [CORE ERROR] {e}")
-        update_db_task(project_id, "failed", error_msg=str(e))
+        traceback.print_exc()
+        err_msg = f"{type(e).__name__}: {str(e)}"
+        print(f"❌ [LOCAL ERROR] {err_msg}")
+        update_db_task(project_id, "failed", error_msg=err_msg)
 
 def start_processing_thread(project_id, sender, url, use_cloud=False):
     target = run_vizard_processor if use_cloud else run_local_processor
