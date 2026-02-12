@@ -395,8 +395,14 @@ HTML_UI = """
                 })
             });
             const d = await r.json();
-            document.getElementById('factory-status').innerText = "✅ Started! Check Monitoring tab.";
+            document.getElementById('factory-status').innerText = "✅ Started! Switching to Monitor...";
             document.getElementById('factory-url').value = "";
+            
+            // Auto-switch to Monitor tab after 1s
+            setTimeout(() => {
+                go('dash');
+            }, 1000);
+            
             append(d.reply, false); 
         }
 
