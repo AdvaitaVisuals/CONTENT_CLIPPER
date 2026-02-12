@@ -57,16 +57,21 @@ def init_db():
     conn.commit()
     conn.close()
 
-def update_db_task(project_id, status, clips=None, provider=None, external_id=None):
+def update_db_task(project_id, status, clips=None, provider=None, external_id=None, error_msg=None):
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
+        
+        final_status = status
+        if error_msg:
+            final_status = f"{status}: {str(error_msg)[:50]}" # Truncate error
+            
         if clips:
-            cursor.execute("UPDATE tasks SET status=?, clips_json=? WHERE project_id=?", (status, json.dumps(clips), project_id))
+            cursor.execute("UPDATE tasks SET status=?, clips_json=? WHERE project_id=?", (final_status, json.dumps(clips), project_id))
         elif provider and external_id:
-            cursor.execute("UPDATE tasks SET status=?, provider=?, external_id=? WHERE project_id=?", (status, provider, external_id, project_id))
+            cursor.execute("UPDATE tasks SET status=?, provider=?, external_id=? WHERE project_id=?", (final_status, provider, external_id, project_id))
         else:
-            cursor.execute("UPDATE tasks SET status=? WHERE project_id=?", (status, project_id))
+            cursor.execute("UPDATE tasks SET status=? WHERE project_id=?", (final_status, project_id))
         conn.commit()
         conn.close()
     except Exception as e: print(f"❌ [DB UPDATE ERROR] {e}")
@@ -85,17 +90,14 @@ def run_vizard_processor(project_id, url, sender):
         
         if vizard_id:
             print(f"✅ [VIZARD] Submitted. ID: {vizard_id}")
-            # We update DB with "processing" and the external ID
-            # IMPORTANT: We cannot poll here if on Vercel because of timeout.
-            # We rely on the Frontend to hit /api/sync_vizard
             update_db_task(project_id, "processing", provider="vizard", external_id=vizard_id)
         else:
             print(f"❌ [VIZARD] Failed to submit.")
-            update_db_task(project_id, "failed")
+            update_db_task(project_id, "failed", error_msg="API Submission Failed")
             
     except Exception as e:
         print(f"❌ [VIZARD ERROR] {e}")
-        update_db_task(project_id, "failed")
+        update_db_task(project_id, "failed", error_msg=str(e))
 
 # --- LOCAL PROCESSING LOGIC ---
 def run_local_processor(project_id, url, sender):
@@ -106,7 +108,7 @@ def run_local_processor(project_id, url, sender):
         if os.environ.get("VERCEL"):
             # Local engine cannot run on Vercel
             print("❌ [FAIL] Cannot run Local Engine on Vercel (Time/Memory Limit). Use Vizard Mode.")
-            update_db_task(project_id, "failed")
+            update_db_task(project_id, "failed", error_msg="Local Engine Blocked on Vercel")
             return
 
         import subprocess
@@ -133,11 +135,11 @@ def run_local_processor(project_id, url, sender):
                 send_wa_message(sender, f"✅ **Bhai, factory ka maal ready hai!**\nClips generate ho gayi hain.")
         else:
             print(f"❌ [FAIL] Project {project_id} error: {stderr}")
-            update_db_task(project_id, "failed")
+            update_db_task(project_id, "failed", error_msg=stderr)
 
     except Exception as e:
         print(f"❌ [CORE ERROR] {e}")
-        update_db_task(project_id, "failed")
+        update_db_task(project_id, "failed", error_msg=str(e))
 
 def start_processing_thread(project_id, sender, url, use_cloud=False):
     target = run_vizard_processor if use_cloud else run_local_processor
