@@ -36,7 +36,7 @@ WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 PHONE_ID = os.environ.get("PHONE_ID")
 VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN", "bot")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-VIZARD_API_KEY = os.environ.get("VIZARD_API_KEY", "9658587d3d6045a492268e512f5e5577") # Default or Env
+VIZARD_API_KEY = os.environ.get("VIZARD_API_KEY", "")
 
 DB_PATH = '/tmp/biru_factory.db' if os.environ.get("VERCEL") else 'biru_factory.db'
 
@@ -83,9 +83,9 @@ def run_vizard_processor(project_id, url, sender):
     print(f"☁️ [FACTORY] Submitting to Vizard AI: {project_id}")
     
     # VALIDATE API KEY
-    if not VIZARD_API_KEY or "9658587" in VIZARD_API_KEY: # Check against placeholder
-        print("❌ [CONFIG ERROR] Vizard API Key missing or default.")
-        update_db_task(project_id, "failed", error_msg="MISSING VIZARD API KEY")
+    if not VIZARD_API_KEY:
+        print("❌ [CONFIG ERROR] Vizard API Key missing.")
+        update_db_task(project_id, "failed", error_msg="MISSING VIZARD API KEY - Set in Vercel Env Vars")
         return
 
     try:
@@ -179,22 +179,22 @@ def sync_vizard(project_id):
         from agents.vizard_agent import VizardAgent
         agent = VizardAgent(api_key=VIZARD_API_KEY)
         v_status = agent.status_check(task['external_id'])
-        
+
         if v_status == "completed":
             v_clips = agent.get_clips(task['external_id'])
-            # Map to our format
             clips = []
             for c in v_clips:
                 clips.append({
-                    "title": c.get("headline", "Vizard Clip"),
-                    "videoUrl": c.get("videoUrl") # Vizard gives direct cloud URLs
+                    "title": c.get("title", "Vizard Clip"),
+                    "videoUrl": c.get("videoUrl", ""),
+                    "viralScore": c.get("viralScore", "")
                 })
             update_db_task(project_id, "completed", clips=clips)
             return jsonify({"status": "completed", "clips": clips})
-        elif v_status == "failed":
-            update_db_task(project_id, "failed")
+        elif v_status == "error":
+            update_db_task(project_id, "failed", error_msg="Vizard processing error")
             return jsonify({"status": "failed"})
-            
+
         return jsonify({"status": "processing_remote"})
         
     except Exception as e:
@@ -291,7 +291,7 @@ HTML_UI = """
 </head>
 <body>
     <aside>
-        <div class="logo"><i class="fas fa-tractor"></i> BIRU ADMIN (v2.1 - CLOUD FORCED)</div>
+        <div class="logo"><i class="fas fa-tractor"></i> BIRU ADMIN (v3.0 - VIZARD FIXED)</div>
         <div class="nav">
             <div class="nav-item active" onclick="go('factory')"><i class="fas fa-industry"></i> Factory</div>
             <div class="nav-item" onclick="go('dash')"><i class="fas fa-desktop"></i> Monitor</div>
@@ -554,12 +554,22 @@ def chat():
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
     if request.method == "GET":
-        if request.args.get("hub.verify_token") == VERIFY_TOKEN: return request.args.get("hub.challenge"), 200
+        mode = request.args.get("hub.mode")
+        token = request.args.get("hub.verify_token")
+        challenge = request.args.get("hub.challenge")
+        print(f"🔹 [WEBHOOK VERIFY] mode={mode}, token={'***' if token else 'MISSING'}, challenge={challenge}", flush=True)
+
+        if mode == "subscribe" and token == VERIFY_TOKEN:
+            print("✅ [WEBHOOK] Verification SUCCESS", flush=True)
+            from flask import Response
+            return Response(challenge, status=200, content_type="text/plain")
+
+        print(f"❌ [WEBHOOK] Verification FAILED. Expected token: '{VERIFY_TOKEN}', Got: '{token}'", flush=True)
         return "Forbidden", 403
-    
+
     data = request.json
-    print(f"🔹 [WEBHOOK RAW]: {data}", flush=True)
-    
+    print(f"🔹 [WEBHOOK RAW]: {json.dumps(data)[:300]}", flush=True)
+
     try:
         if "entry" in data and data["entry"]:
             entry = data["entry"][0]
@@ -567,19 +577,26 @@ def webhook():
                 changes = entry["changes"][0]
                 if "value" in changes and changes["value"]:
                     val = changes["value"]
+
+                    # Skip status updates (delivery receipts etc.)
+                    if "statuses" in val:
+                        print("🔹 [INFO] Status update received (delivery/read receipt). Skipping.", flush=True)
+                        return "OK", 200
+
                     if "messages" in val and val["messages"]:
                         msg_val = val["messages"][0]
                         sender = msg_val["from"]
-                        
-                        # 2. Handle Text
+
                         if "text" in msg_val:
                             text = msg_val["text"]["body"]
                             print(f"📩 [WA-MSG] {sender} said: {text}", flush=True)
-                            reply = handle_universal(text, sender, "whatsapp")
+
+                            # For WhatsApp on Vercel: process but don't block on Vizard
+                            reply = handle_universal(text, sender, "whatsapp", use_cloud=True)
                             send_wa_message(sender, reply)
-                            print(f"📤 [REPLY SENT] to {sender}: {reply}", flush=True)
+                            print(f"📤 [REPLY SENT] to {sender}", flush=True)
                         else:
-                            print("🔹 [INFO] Non-text message received.", flush=True)
+                            print(f"🔹 [INFO] Non-text message type: {msg_val.get('type', 'unknown')}", flush=True)
                     else:
                         print("🔹 [INFO] No 'messages' in value.", flush=True)
                 else:
@@ -588,13 +605,29 @@ def webhook():
                 print("🔹 [INFO] No 'changes' in entry.", flush=True)
         else:
             print("🔹 [INFO] No 'entry' in data.", flush=True)
-            
-    except Exception as e: 
+
+    except Exception as e:
         print(f"❌ [WEBHOOK ERROR]: {e}", flush=True)
         import traceback
         traceback.print_exc()
-        
+
     return "OK", 200
+
+@app.route("/api/health", methods=["GET"])
+def health():
+    """Diagnostic endpoint to verify deployment and config"""
+    return jsonify({
+        "status": "ok",
+        "version": "v3.0",
+        "config": {
+            "WHATSAPP_TOKEN": "SET" if WHATSAPP_TOKEN else "MISSING",
+            "PHONE_ID": "SET" if PHONE_ID else "MISSING",
+            "VERIFY_TOKEN": VERIFY_TOKEN,
+            "VIZARD_API_KEY": "SET" if VIZARD_API_KEY else "MISSING",
+            "OPENAI_API_KEY": "SET" if OPENAI_API_KEY else "MISSING",
+            "ON_VERCEL": bool(os.environ.get("VERCEL"))
+        }
+    })
 
 if __name__ == "__main__":
     app.run(port=5000)
