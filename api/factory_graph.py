@@ -22,7 +22,11 @@ class AgentState(TypedDict):
     clips: List[dict]
 
 # --- UTILS ---
-DB_PATH = 'biru_factory.db'
+# --- UTILS ---
+if os.environ.get("VERCEL"):
+    DB_PATH = '/tmp/biru_factory.db'
+else:
+    DB_PATH = 'biru_factory.db'
 
 def log_to_db(source, sender, url, project_id, status='processing'):
     try:
@@ -60,15 +64,9 @@ def analyzer_node(state: AgentState):
     return {"intent": intent, "url": detected_url}
 
 # --- AGENTS HUB ---
-try:
-    from agents.understanding_agent import UnderstandingAgent
-    from agents.viral_cutter_agent import ViralCutterAgent
-    from agents.frame_power_agent import FramePowerAgent
-    from agents.caption_agent import CaptionAgent
-except ImportError:
-    # If not in package mode
-    from .understanding_agent import UnderstandingAgent
-    from .viral_cutter_agent import ViralCutterAgent
+# --- AGENTS HUB ---
+# Agents are only used in the local processor (process_video.py)
+# so we don't import them here to keep the Vercel function lightweight.
 
 def video_factory_node(state: AgentState):
     url = state["url"]
