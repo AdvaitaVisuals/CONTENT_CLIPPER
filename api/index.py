@@ -398,7 +398,7 @@ HTML_UI = """
             <div class="card" style="width: 100%;">
                 <table>
                     <thead>
-                        <tr><th>TIME</th><th>FROM</th><th>SOURCE</th><th>PROJECT</th><th>STATUS / PROGRESS</th><th>ACTIONS</th></tr>
+                        <tr><th>TIME</th><th>FROM</th><th>SOURCE</th><th>PROJECT</th><th>STATUS</th><th>ERROR DETAILS</th><th>ACTIONS</th></tr>
                     </thead>
                     <tbody id="log-body"></tbody>
                 </table>
@@ -499,10 +499,12 @@ HTML_UI = """
                     <td><a href="${t.url}" target="_blank" style="color:var(--dim); text-decoration:none; font-size:11px;">${t.url.substring(0,25)}...</a><br><code>${t.project_id}</code></td>
                     <td>
                         <span class="badge ${statusClass}">${statusMain}</span>
-                        ${statusError ? `<div class="error-msg">${statusError}</div>` : ''}
                         ${statusClass === 'processing' || statusClass === 'submitting' ? `
                         <div class="progress-container"><div class="progress-bar" style="width: ${progress}%"></div></div>
                         ` : ''}
+                    </td>
+                    <td style="color:#FF4444; font-size:12px; max-width:200px; white-space:normal;">
+                        ${statusError || '-'}
                     </td>
                     <td>
                         <i class="fas fa-trash delete-btn" onclick="deleteTask('${t.project_id}')"></i>
