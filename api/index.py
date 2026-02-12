@@ -306,7 +306,7 @@ HTML_UI = """
         .nav-item.active { color: var(--primary); }
 
         /* Main Content */
-        main { flex: 1; padding: 40px; overflow-y: auto; background: radial-gradient(circle at top right, rgba(255, 61, 0, 0.03), transparent); }
+        main { flex: 1; padding: 40px; overflow-y: auto; background: radial-gradient(circle at top right, rgba(255, 61, 0, 0.03), transparent); width: 100%; }
         h1 { font-size: 32px; font-weight: 800; margin-bottom: 30px; }
         .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
         .card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 25px; transition: 0.3s; }
@@ -333,15 +333,17 @@ HTML_UI = """
         .delete-btn { position: absolute; top: 15px; right: 15px; color: var(--dim); cursor: pointer; transition: 0.3s; }
         .delete-btn:hover { color: #FF4444; }
 
-        /* Chat Panel */
-        .chat-panel { width: 380px; border-left: 1px solid var(--border); background: #0D0D0F; display: flex; flex-direction: column; }
-        .chat-head { padding: 25px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-        .chat-msgs { flex: 1; padding: 25px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
-        .msg { padding: 12px 18px; border-radius: 16px; font-size: 14px; line-height: 1.5; max-width: 85%; }
+        /* Floating Chatbot */
+        #chat-trigger { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; box-shadow: 0 10px 30px rgba(255,61,0,0.3); z-index: 1001; transition: 0.3s; }
+        #chat-trigger:hover { transform: scale(1.1); }
+        .chat-panel { position: fixed; bottom: 100px; right: 30px; width: 380px; height: 500px; background: #0D0D0F; border: 1px solid var(--border); border-radius: 20px; display: none; flex-direction: column; z-index: 1000; box-shadow: 0 20px 50px rgba(0,0,0,0.5); overflow: hidden; }
+        .chat-head { padding: 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.02); }
+        .chat-msgs { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        .msg { padding: 10px 15px; border-radius: 12px; font-size: 13px; line-height: 1.4; max-width: 85%; }
         .msg.ai { background: rgba(255,255,255,0.05); align-self: flex-start; }
         .msg.user { background: var(--primary); align-self: flex-end; }
-        .chat-input { padding: 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
-        .chat-input input { flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border); color: white; padding: 12px; border-radius: 10px; outline: none; }
+        .chat-input { padding: 15px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
+        .chat-input input { flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border); color: white; padding: 10px; border-radius: 8px; outline: none; }
     </style>
 </head>
 <body>
@@ -355,15 +357,18 @@ HTML_UI = """
         </div>
     </aside>
 
-    <div class="chat-panel">
+    <div id="chat-trigger" onclick="toggleChat()"><i class="fas fa-comment-dots"></i></div>
+
+    <div class="chat-panel" id="chat-win">
         <div class="chat-head">
             <div style="display:flex; align-items:center; gap:10px;">
                 <div style="width:8px; height:8px; background:#00FF7F; border-radius:50%; box-shadow:0 0 10px #00FF7F;"></div>
                 <span style="font-weight:700;">Biru ka Chela</span>
             </div>
+            <i class="fas fa-times" onclick="toggleChat()" style="cursor:pointer; opacity:0.5;"></i>
         </div>
         <div class="chat-msgs" id="chat-msgs">
-            <div class="msg ai">Ram Ram Bhai! Welcome to Biru Bhai 3.0. Main aapka video factory assistant hoon.</div>
+            <div class="msg ai">Ram Ram Bhai! Monitoring space badha di hai, ab tasks saaf dikhenge!</div>
         </div>
         <div class="chat-input">
             <input type="text" id="chat-in" placeholder="Type command..." onkeypress="if(event.key=='Enter')send()">
@@ -431,6 +436,11 @@ HTML_UI = """
     </main>
 
     <script>
+        function toggleChat() {
+            const win = document.getElementById('chat-win');
+            win.style.display = win.style.display === 'flex' ? 'none' : 'flex';
+        }
+
         function go(p) {
             document.querySelectorAll('.page').forEach(x=>x.style.display='none');
             document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
