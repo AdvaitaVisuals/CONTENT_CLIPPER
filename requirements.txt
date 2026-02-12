@@ -2,4 +2,7 @@ flask
 requests
 openai
 python-dotenv
+langgraph
+langchain-openai
+pydantic
 gunicorn
