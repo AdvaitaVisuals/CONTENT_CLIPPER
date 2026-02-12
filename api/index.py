@@ -200,10 +200,20 @@ def handle_universal(text, sender, source, use_cloud=False):
     project_id = output.get("project_id")
     url = output.get("url")
     
+    # Force Cloud if on Vercel
+    if os.environ.get("VERCEL"):
+        use_cloud = True
+
     # If a new project was started
     if project_id:
         if use_cloud:
-            response += "\n\n(☁️ Using Cloud Engine - Vizard AI)"
+            response += "\n\n(☁️ Charging into Cloud Engine - Vizard AI)"
+        else:
+            if os.environ.get("VERCEL"):
+                response += "\n\n⚠️ Local Engine blocked on Vercel. Using Cloud."
+            else:
+                response += "\n\n(🚜 Using Local Engine)"
+        
         start_processing_thread(project_id, sender, url, use_cloud)
     
     print(f"🤖 [CHELA]: {response}")
@@ -302,7 +312,7 @@ HTML_UI = """
                     <button onclick="submitFactory()" style="background:var(--primary); color:white; border:none; padding:12px 25px; border-radius:8px; cursor:pointer; font-weight:700;">START 🚀</button>
                 </div>
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <input type="checkbox" id="use-cloud"> 
+                    <input type="checkbox" id="use-cloud" checked> 
                     <label for="use-cloud" style="color:var(--dim); font-size:14px; cursor:pointer;">Use Cloud Engine (Vizard AI) - <b>Recommended for Vercel</b></label>
                 </div>
                 <div id="factory-status" style="margin-top:20px; color:#00FF7F; font-weight:600;"></div>
@@ -532,19 +542,42 @@ def webhook():
         return "Forbidden", 403
     
     data = request.json
+    print(f"🔹 [WEBHOOK RAW]: {data}", flush=True)
+    
     try:
-        msg_val = data["entry"][0]["changes"][0]["value"]["messages"][0]
-        sender = msg_val["from"]
-        
-        # 2. Handle Text
-        if "text" in msg_val:
-            text = msg_val["text"]["body"]
-            print(f"📩 [WA-MSG] {sender} said: {text}")
-            reply = handle_universal(text, sender, "whatsapp")
-            send_wa_message(sender, reply)
+        if "entry" in data and data["entry"]:
+            entry = data["entry"][0]
+            if "changes" in entry and entry["changes"]:
+                changes = entry["changes"][0]
+                if "value" in changes and changes["value"]:
+                    val = changes["value"]
+                    if "messages" in val and val["messages"]:
+                        msg_val = val["messages"][0]
+                        sender = msg_val["from"]
+                        
+                        # 2. Handle Text
+                        if "text" in msg_val:
+                            text = msg_val["text"]["body"]
+                            print(f"📩 [WA-MSG] {sender} said: {text}", flush=True)
+                            reply = handle_universal(text, sender, "whatsapp")
+                            send_wa_message(sender, reply)
+                            print(f"📤 [REPLY SENT] to {sender}: {reply}", flush=True)
+                        else:
+                            print("🔹 [INFO] Non-text message received.", flush=True)
+                    else:
+                        print("🔹 [INFO] No 'messages' in value.", flush=True)
+                else:
+                    print("🔹 [INFO] No 'value' in changes.", flush=True)
+            else:
+                print("🔹 [INFO] No 'changes' in entry.", flush=True)
+        else:
+            print("🔹 [INFO] No 'entry' in data.", flush=True)
             
     except Exception as e: 
-        print(f"Webhook error: {e}")
+        print(f"❌ [WEBHOOK ERROR]: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        
     return "OK", 200
 
 if __name__ == "__main__":
