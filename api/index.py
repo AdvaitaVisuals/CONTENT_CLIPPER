@@ -209,46 +209,6 @@ HTML_UI = """
         </div>
     </aside>
 
-    <main>
-        <div id="p-factory" class="page active">
-            <h1>Video Factory 🏭</h1>
-            <div class="card" style="max-width: 600px;">
-                <p style="color:var(--dim); margin-bottom:15px;">Enter a YouTube URL to start the clipping engine manually.</p>
-                <div style="display:flex; gap:10px;">
-                    <input type="text" id="factory-url" placeholder="Paste YouTube Link here..." style="flex:1; padding:12px; background:rgba(0,0,0,0.3); border:1px solid var(--border); color:white; border-radius:8px;">
-                    <button onclick="submitFactory()" style="background:var(--primary); color:white; border:none; padding:12px 25px; border-radius:8px; cursor:pointer; font-weight:700;">START 🚀</button>
-                </div>
-                <div id="factory-status" style="margin-top:20px; color:#00FF7F; font-weight:600;"></div>
-            </div>
-        </div>
-
-        <div id="p-dash" class="page" style="display:none;">
-            <h1>Process Monitoring Log 📡</h1>
-            <div class="card" style="width: 100%;">
-                <table>
-                    <thead>
-                        <tr><th>TIME</th><th>FROM</th><th>SOURCE</th><th>PROJECT</th><th>STATUS / PROGRESS</th></tr>
-                    </thead>
-                    <tbody id="log-body"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div id="p-clipper" class="page" style="display:none;">
-            <h1>Factory Results 🎞️</h1>
-            <div id="clip-results"></div>
-        </div>
-
-        <div id="p-strat" class="page" style="display:none;">
-            <h1>Viral Strategy Engine 🧠</h1>
-            <div class="card">
-                <p style="color:var(--dim); margin-bottom:20px;">AI is analyzing latest trends for you.</p>
-                <button onclick="askStrategy()" style="background:var(--primary); color:white; border:none; padding:12px 20px; border-radius:8px; cursor:pointer; font-weight:700;">Generate Viral Strategy</button>
-                <div id="strat-box" style="margin-top:25px; background:rgba(255,255,255,0.02); padding:20px; border-radius:12px; color:#DDD; line-height:1.6;"></div>
-            </div>
-        </div>
-    </main>
-
     <div class="chat-panel">
         <div class="chat-head">
             <div style="display:flex; align-items:center; gap:10px;">
@@ -264,6 +224,73 @@ HTML_UI = """
             <button onclick="send()" style="background:none; border:none; color:white; cursor:pointer;"><i class="fas fa-paper-plane"></i></button>
         </div>
     </div>
+
+    <!-- MAIN CONTENT AREA -->
+    <main>
+        <!-- FACTORY PAGE -->
+        <div id="p-factory" class="page active">
+            <h1>Video Factory 🏭</h1>
+            <div class="card" style="max-width: 800px;">
+                <p style="color:var(--dim); margin-bottom:15px;">Paste a YouTube link to start the Local Clipping Engine.</p>
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="factory-url" placeholder="https://youtube.com/watch?v=..." style="flex:1; padding:12px; background:rgba(0,0,0,0.3); border:1px solid var(--border); color:white; border-radius:8px;">
+                    <button onclick="submitFactory()" style="background:var(--primary); color:white; border:none; padding:12px 25px; border-radius:8px; cursor:pointer; font-weight:700;">START 🚀</button>
+                </div>
+                <div id="factory-status" style="margin-top:20px; color:#00FF7F; font-weight:600;"></div>
+            </div>
+            
+            <h2 style="margin-top:40px;">Recent Clips 🎞️</h2>
+            <div id="clip-results">Loading clips...</div>
+        </div>
+
+        <!-- MONITOR PAGE -->
+        <div id="p-dash" class="page" style="display:none;">
+            <h1>Process Monitoring Log 📡</h1>
+            <div class="card" style="width: 100%;">
+                <table>
+                    <thead>
+                        <tr><th>TIME</th><th>FROM</th><th>SOURCE</th><th>PROJECT</th><th>STATUS / PROGRESS</th></tr>
+                    </thead>
+                    <tbody id="log-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- STRATEGY PAGE (Ported from Streamlit) -->
+        <div id="p-strat" class="page" style="display:none;">
+            <h1>Viral Strategy Engine 🧠</h1>
+            <div class="grid">
+                <div class="card">
+                    <h3>📈 Trend Intelligence</h3>
+                    <p style="color:var(--dim); margin-bottom:20px;">AI Scans Instagram & YouTube for Haryanvi trends.</p>
+                    <button onclick="askBot('Analyze current Haryanvi trends and give a report')" style="background:var(--primary); width:100%; color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:700; margin-bottom:10px;">📊 ANALYZE TRENDS</button>
+                    <div id="trend-box" style="margin-top:15px; font-size:14px; color:#DDD;"></div>
+                </div>
+
+                <div class="card">
+                    <h3>📅 Content Calendar</h3>
+                    <p style="color:var(--dim); margin-bottom:20px;">Generate a posting schedule based on viral clips.</p>
+                    <button onclick="askBot('Generate a content calendar for next week based on my clips')" style="background:#00FF7F; width:100%; color:black; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:700; margin-bottom:10px;">🗓️ MAKE CALENDAR</button>
+                    <div id="calendar-box" style="margin-top:15px; font-size:14px; color:#DDD;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SETTINGS PAGE -->
+        <div id="p-settings" class="page" style="display:none;">
+            <h1>Settings ⚙️</h1>
+            <div class="card" style="max-width:500px">
+                <label style="display:block; margin-bottom:10px; color:var(--dim);">WhatsApp Phone ID</label>
+                <input type="text" value="${PHONE_ID}" disabled style="width:100%; padding:10px; background:rgba(255,255,255,0.05); border:none; color:white; border-radius:5px; margin-bottom:20px;">
+                
+                <label style="display:block; margin-bottom:10px; color:var(--dim);">System Status</label>
+                <div style="display:flex; align-items:center; gap:10px; color:#00FF7F;">
+                    <div style="width:10px; height:10px; background:#00FF7F; border-radius:50%;"></div>
+                    Active & Listening
+                </div>
+            </div>
+        </div>
+    </main>
 
     <script>
         function go(p) {
@@ -368,12 +395,16 @@ HTML_UI = """
             b.appendChild(d); b.scrollTop = b.scrollHeight;
         }
 
-        async function askStrategy() {
-            const b = document.getElementById('strat-box');
-            b.innerHTML = "Bhai analysis ho rha hai...";
-            const r = await fetch('/api/chat', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:"Bhai mast viral strategy btao reels ke liye short mein"})});
+        async function askBot(prompt) {
+            let container = 'trend-box';
+            if(prompt.includes('calendar')) container = 'calendar-box';
+            
+            const box = document.getElementById(container);
+            box.innerText = "Analyzing... (this may take a moment)";
+            
+            const r = await fetch('/api/chat', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message: prompt})});
             const d = await r.json();
-            b.innerHTML = d.reply;
+            box.innerText = d.reply;
         }
 
         setInterval(() => { if(document.getElementById('p-dash').style.display!='none') refresh(); }, 8000);
