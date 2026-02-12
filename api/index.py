@@ -328,37 +328,44 @@ def send_wa_message(to, text):
     payload = {"messaging_product": "whatsapp", "to": to, "type": "text", "text": {"body": text}}
     requests.post(url, headers=headers, json=payload)
 
+import re
+
 def handle_logic(text):
-    if text.startswith("/cut"):
+    # Regex for URL detection
+    url_pattern = r'https?://[^\s<>"]+|www\.[^\s<>"]+'
+    urls = re.findall(url_pattern, text)
+    is_clipping_intent = any(kw in text.lower() for kw in ["clip", "cut", "banao", "bana", "video", "process", "factory", "nikal"])
+
+    # 1. AUTO-TRIGGER VIZARD IF URL + INTENT FOUND
+    if urls and (text.startswith("/cut") or is_clipping_intent):
         if not VIZARD_API_KEY:
             return "❌ Bhai, Vizard API Key nahi mil rahi. Admin se bolo."
-        parts = text.split()
-        url = parts[1] if len(parts) > 1 else ""
-        if not url:
-            return "❌ Bhai, pehle link toh bhej!"
+        
+        url = urls[0] # Take the first URL found
         try:
             vizard = VizardAgent(api_key=VIZARD_API_KEY)
             project_id = vizard.submit_video(url)
             if project_id:
-                return f"🚀 **Bhai, factory shuru!**\\nVideo bhej diya hai. Project ID: `{project_id}`"
+                return f"🚀 **Bhai, factory shuru kar di hai!**\n\nAapka video process hone ke liye bhej diya hai.\n**Project ID:** `{project_id}`\n\nClips bante hi aapko dashboard ya WhatsApp pe update mil jayega."
             else:
-                return "❌ Bhai, link bhenjne mein dikakat aayi hai."
+                return "❌ Bhai, link bhenjne mein dikakat aayi hai. Dubara try karo."
         except Exception as e:
             return f"❌ Error: {str(e)}"
     
+    # 2. DEFAULT CHAT LOGIC
     if not OPENAI_API_KEY: return "Ram Ram Bhai! OpenAI key nahi hai, chat kaise karun?"
     try:
         client = OpenAI(api_key=OPENAI_API_KEY)
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are 'Biru Bhai ka Chela'. \n\nCAPABILITIES:\n1. Understand Hindi, Urdu, and English perfectly.\n\nRESPONSE RULES:\n1. Always respond in short, respectful Hindi/Desi style using 'Aap'.\n2. Address the user as 'Bhai'. Example: 'Bhai, batao kya kaam karna hai?'\n3. Keep messages VERY SHORT. No long explanations or Urdu honorifics like 'Hukum/Maaf'.\n4. Your main job is converting video links into 5-10 viral clips using `/cut <URL>`.\n5. If a user sends a voice note, just reply to the content directly without repeating what they said."},
+                {"role": "system", "content": "You are 'Biru Bhai ka Chela'. \n\nCAPABILITIES:\n1. Understand Hindi, Urdu, and English perfectly.\n\nRESPONSE RULES:\n1. Always respond in short, respectful Hindi/Desi style using 'Aap'.\n2. Address the user as 'Bhai'. Example: 'Bhai, batao kya kaam karna hai?'\n3. Keep messages VERY SHORT. \n4. If a user asks to clip/cut a video but hasn't provided a link, ask them for the link.\n5. If they provide a link, tell them Biru Bhai's factory is starting the work.\n6. NEVER echo '/cut' commands to the user anymore, just tell them you are starting the work."},
                 {"role": "user", "content": text}
             ]
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"Maaf kijiye, chela error de gaya: {str(e)}"
+        return f"Bhai, error aa gaya: {str(e)}"
 
 def get_media_url(media_id):
     url = f"https://graph.facebook.com/v21.0/{media_id}"
