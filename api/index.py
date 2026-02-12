@@ -478,6 +478,12 @@ HTML_UI = """
                 let statusMain = statusParts[0].trim().toUpperCase();
                 let statusError = statusParts.length > 1 ? statusParts.slice(1).join(':').trim() : "";
                 
+                // FALLBACK: If status is long and has no colon, it's probably the error itself
+                if(!statusError && t.status.length > 20) {
+                    statusError = t.status;
+                    statusMain = "FAILED";
+                }
+
                 let statusClass = statusMain.toLowerCase();
                 if(statusClass === 'completed') progress = 100;
                 else if(statusClass === 'processing' || statusClass === 'submitting') progress = 45; 
@@ -494,7 +500,7 @@ HTML_UI = """
                         <div class="progress-container"><div class="progress-bar" style="width: ${progress}%"></div></div>
                         ` : ''}
                     </td>
-                    <td style="color:#FF4444; font-size:12px; max-width:200px; white-space:normal;">
+                    <td style="color:#FF4444; font-size:12px; max-width:300px; white-space:normal;">
                         ${statusError || '-'}
                     </td>
                     <td>
