@@ -59,22 +59,36 @@ def analyzer_node(state: AgentState):
         
     return {"intent": intent, "url": detected_url}
 
+# --- AGENTS HUB ---
+try:
+    from agents.understanding_agent import UnderstandingAgent
+    from agents.viral_cutter_agent import ViralCutterAgent
+    from agents.frame_power_agent import FramePowerAgent
+    from agents.caption_agent import CaptionAgent
+except ImportError:
+    # If not in package mode
+    from .understanding_agent import UnderstandingAgent
+    from .viral_cutter_agent import ViralCutterAgent
+
 def video_factory_node(state: AgentState):
-    if not os.environ.get("VIZARD_API_KEY"):
-        return {"response": "❌ Bhai, Vizard API Key missing hai. Admin ko bolo."}
+    url = state["url"]
+    sender = state["sender"]
+    source = state["source"]
     
-    vizard = VizardAgent(api_key=os.environ.get("VIZARD_API_KEY"))
-    project_id = vizard.submit_video(state["url"])
+    # We create a unique Project ID for the local task
+    import uuid
+    project_id = f"BIRU_{uuid.uuid4().hex[:8]}"
     
-    if project_id:
-        log_to_db(state["source"], state["sender"], state["url"], project_id)
-        # Return status for caller to handle threading (or handle here if needed)
-        return {
-            "project_id": project_id,
-            "response": f"🚀 **Bhai, factory shuru!**\n\nAapka video process hone bhej diya hai.\nProject ID: `{project_id}`\nMain nazar rakh raha hoon!"
-        }
-    else:
-        return {"response": "❌ Bhai, factory mein koi dikakat aayi hai. Dubara try karo."}
+    # Log the submission to DB
+    log_to_db(source, sender, url, project_id, status='submitting')
+    
+    # In the local version, we will handle the actual clipping via a background process
+    # or a separate thread in index.py. For the graph node, we just confirm submission.
+    
+    return {
+        "project_id": project_id,
+        "response": f"🚀 **Bhai, Factory on hai!**\n\nYouTube link mil gaya hai. Main use download karke **FFmpeg + Remotion** se viral clips bana raha hoon.\n\nProject ID: `{project_id}`\nDashboard check karte rehna!"
+    }
 
 def chat_node(state: AgentState):
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))

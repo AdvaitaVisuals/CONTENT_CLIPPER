@@ -1,0 +1,22 @@
+{
+  "name": "biru-bhai-reels",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render",
+    "build": "remotion render InstaReel"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.421",
+    "@remotion/media": "4.0.421",
+    "@remotion/captions": "4.0.421",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "4.0.421"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^5.7.0"
+  }
+}

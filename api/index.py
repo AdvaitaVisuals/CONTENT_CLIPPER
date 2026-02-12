@@ -5,18 +5,22 @@ import re
 import threading
 import time
 import sqlite3
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, send_from_directory
 from openai import OpenAI
 
 # LangGraph Integration
 try:
     from .factory_graph import run_factory_agent
-    from .vizard_agent import VizardAgent
 except ImportError:
     from factory_graph import run_factory_agent
-    from vizard_agent import VizardAgent
 
 app = Flask(__name__)
+
+@app.route('/outputs/<project_id>/<path:filename>')
+def serve_output(project_id, filename):
+    work_dir = f"output_{project_id}"
+    reels_dir = os.path.join(work_dir, "reels")
+    return send_from_directory(os.path.abspath(reels_dir), filename)
 
 # --- CONFIG ---
 WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
@@ -49,37 +53,63 @@ def update_db_task(project_id, status, clips=None):
 
 init_db()
 
-# --- POLLING LOGIC ---
-def poll_and_send_clips(project_id, sender):
-    vizard = VizardAgent(api_key=VIZARD_API_KEY)
-    max_attempts = 40
-    attempts = 0
-    print(f"📡 [AGENT] Monitoring Project: {project_id} for {sender}")
+# --- LOCAL PROCESSING LOGIC ---
+def run_local_processor(project_id, url, sender):
+    print(f"🚜 [FACTORY] Starting Local Engine for Project: {project_id}")
+    update_db_task(project_id, "processing")
     
-    while attempts < max_attempts:
-        time.sleep(15)
-        attempts += 1
-        status = vizard.status_check(project_id)
-        update_db_task(project_id, status)
+    try:
+        # We run the process_video.py as a subprocess to keep it clean
+        # Output will be in output/reels
+        import subprocess
         
-        if status == "completed":
-            clips = vizard.get_clips(project_id)
-            if clips:
-                # Store in DB
-                update_db_task(project_id, "completed", clips=clips)
-                if sender and sender != "Admin_Web":
-                    send_wa_message(sender, f"✅ **Bhai, factory ka maal ready hai!** Clips bhej raha hoon...")
-                    for c in clips:
-                        send_wa_message(sender, f"🎥 {c.get('title')}\n🔗 {c.get('videoUrl')}")
-                        time.sleep(1)
-                return
-            break
-        elif status == "failed":
-            update_db_task(project_id, "failed")
-            if sender and sender != "Admin_Web": send_wa_message(sender, "❌ Bhai, factory mein failure ho gaya.")
-            return
+        # We create a TEMP directory for this project to avoid collisions if multiple tasks
+        work_dir = f"output_{project_id}"
+        os.makedirs(work_dir, exist_ok=True)
+        
+        cmd = ["python", "process_video.py", url, "--output_dir", work_dir]
+        print(f"🏃 [RUNNING]: {' '.join(cmd)}")
+        
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        
+        # Feed progress to console but also keep moving
+        stdout, stderr = process.communicate()
+        
+        if process.returncode == 0:
+            print(f"✅ [DONE] Project {project_id} finished successfully.")
+            
+            # Check for clips in reels folder
+            reels_dir = os.path.join(work_dir, "reels")
+            clips = []
+            if os.path.exists(reels_dir):
+                for f in os.listdir(reels_dir):
+                    if f.endswith(".mp4"):
+                        # In the real world, we'd need to serve this file via ngrok/public URL
+                        # For now, we simulate the structure
+                        clips.append({
+                            "title": f,
+                            "videoUrl": f"/outputs/{project_id}/{f}" # Mock URL
+                        })
+            
+            update_db_task(project_id, "completed", clips=clips)
+            
+            if sender and sender != "Admin_Web":
+                send_wa_message(sender, f"✅ **Bhai, factory ka maal ready hai!** (Local Engine)\nClips generate ho gayi hain. Dashboard check karo.")
         else:
-            print(f"⏳ [POLLING] Project {project_id} is {status}... {attempts*15}s")
+            print(f"❌ [FAIL] Project {project_id} error: {stderr}")
+            update_db_task(project_id, "failed")
+            if sender and sender != "Admin_Web":
+                send_wa_message(sender, "❌ Bhai, factory mein error aa gaya. Local logs check karo.")
+
+    except Exception as e:
+        print(f"❌ [CORE ERROR] {e}")
+        update_db_task(project_id, "failed")
+
+def poll_and_send_clips(project_id, sender, url=None):
+    # This is a wrapper for the local processor now
+    thread = threading.Thread(target=run_local_processor, args=(project_id, url, sender))
+    thread.daemon = True
+    thread.start()
 
 def send_wa_message(to, text):
     if not PHONE_ID or not WHATSAPP_TOKEN: return
@@ -95,12 +125,11 @@ def handle_universal(text, sender, source):
     
     response = output.get("response", "Bhai dimaag ghum gaya mera.")
     project_id = output.get("project_id")
+    url = output.get("url")
     
-    # If a new project was started, trigger polling
-    if project_id and source == "whatsapp":
-        thread = threading.Thread(target=poll_and_send_clips, args=(project_id, sender))
-        thread.daemon = True
-        thread.start()
+    # If a new project was started, trigger local processor
+    if project_id:
+        poll_and_send_clips(project_id, sender, url)
     
     # Also log to terminal
     print(f"🤖 [CHELA]: {response}")
