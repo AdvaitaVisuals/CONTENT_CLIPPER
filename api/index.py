@@ -275,15 +275,23 @@ HTML_UI = """
         /* Monitor Table */
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th { text-align: left; color: var(--dim); font-size: 13px; padding-bottom: 15px; border-bottom: 1px solid var(--border); }
-        td { padding: 18px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
-        .badge { padding: 5px 10px; border-radius: 6px; font-weight: 700; font-size: 11px; text-transform: uppercase; }
+        td { padding: 18px 0; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: top; }
+        .badge { padding: 5px 10px; border-radius: 6px; font-weight: 700; font-size: 11px; text-transform: uppercase; display: inline-block; margin-bottom: 5px; }
         .badge.completed { background: rgba(0,255,127,0.1); color: #00FF7F; }
+        .badge.failed { background: rgba(255,0,0,0.1); color: #FF4444; }
         .badge.processing, .badge.submitting { background: rgba(255,165,0,0.1); color: orange; }
+        .error-msg { font-size: 11px; color: #FF4444; display: block; max-width: 250px; white-space: normal; }
 
         /* Progress Bar */
         .progress-container { width: 100%; background: rgba(255,255,255,0.05); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 5px; position: relative; }
         .progress-bar { height: 100%; background: var(--primary); width: 0%; transition: width 0.5s ease; border-radius: 4px; box-shadow: 0 0 10px var(--primary); }
         .progress-text { font-size: 10px; color: var(--dim); margin-top: 4px; font-weight: 600; }
+
+        /* Results UI */
+        .clip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
+        .clip-card { background: var(--card); border: 1px solid var(--border); border-radius: 15px; padding: 20px; position: relative; }
+        .delete-btn { position: absolute; top: 15px; right: 15px; color: var(--dim); cursor: pointer; transition: 0.3s; }
+        .delete-btn:hover { color: #FF4444; }
 
         /* Chat Panel */
         .chat-panel { width: 380px; border-left: 1px solid var(--border); background: #0D0D0F; display: flex; flex-direction: column; }
@@ -298,7 +306,7 @@ HTML_UI = """
 </head>
 <body>
     <aside>
-        <div class="logo"><i class="fas fa-tractor"></i> BIRU ADMIN (v3.0 - VIZARD FIXED)</div>
+        <div class="logo"><i class="fas fa-tractor"></i> BIRU ADMIN (v3.1)</div>
         <div class="nav">
             <div class="nav-item active" onclick="go('factory')"><i class="fas fa-industry"></i> Factory</div>
             <div class="nav-item" onclick="go('dash')"><i class="fas fa-desktop"></i> Monitor</div>
@@ -315,7 +323,7 @@ HTML_UI = """
             </div>
         </div>
         <div class="chat-msgs" id="chat-msgs">
-            <div class="msg ai">Ram Ram Bhai! Main yahan hun. Kuch poocho?</div>
+            <div class="msg ai">Ram Ram Bhai! Welcome to Biru Bhai 3.0. Main aapka video factory assistant hoon.</div>
         </div>
         <div class="chat-input">
             <input type="text" id="chat-in" placeholder="Type command..." onkeypress="if(event.key=='Enter')send()">
@@ -338,57 +346,45 @@ HTML_UI = """
                     <input type="checkbox" id="use-cloud" checked> 
                     <label for="use-cloud" style="color:var(--dim); font-size:14px; cursor:pointer;">Use Cloud Engine (Vizard AI) - <b>Recommended for Vercel</b></label>
                 </div>
-                <div id="factory-status" style="margin-top:20px; color:#00FF7F; font-weight:600;"></div>
             </div>
-            
-            <h2 style="margin-top:40px;">Recent Clips 🎞️</h2>
-            <div id="clip-results">Loading clips...</div>
         </div>
 
         <!-- MONITOR PAGE -->
         <div id="p-dash" class="page" style="display:none;">
-            <h1>Process Monitoring Log 📡</h1>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
+                <h1>Process Monitoring Log 📡</h1>
+                <button onclick="refresh()" style="background:none; border:1px solid var(--border); color:var(--dim); padding:8px 15px; border-radius:8px; cursor:pointer;"><i class="fas fa-sync"></i> Sync</button>
+            </div>
             <div class="card" style="width: 100%;">
                 <table>
                     <thead>
-                        <tr><th>TIME</th><th>FROM</th><th>SOURCE</th><th>PROJECT</th><th>STATUS / PROGRESS</th></tr>
+                        <tr><th>TIME</th><th>FROM</th><th>SOURCE</th><th>PROJECT</th><th>STATUS / PROGRESS</th><th>ACTIONS</th></tr>
                     </thead>
                     <tbody id="log-body"></tbody>
                 </table>
             </div>
         </div>
 
-        <!-- STRATEGY PAGE (Ported from Streamlit) -->
+        <!-- RESULTS PAGE -->
+        <div id="p-clipper" class="page" style="display:none;">
+            <h1>Clipped Results 🎬</h1>
+            <div id="clip-results" class="clip-grid">Loading results...</div>
+        </div>
+
+        <!-- STRATEGY PAGE -->
         <div id="p-strat" class="page" style="display:none;">
             <h1>Viral Strategy Engine 🧠</h1>
             <div class="grid">
                 <div class="card">
                     <h3>📈 Trend Intelligence</h3>
-                    <p style="color:var(--dim); margin-bottom:20px;">AI Scans Instagram & YouTube for Haryanvi trends.</p>
-                    <button onclick="askBot('Analyze current Haryanvi trends and give a report')" style="background:var(--primary); width:100%; color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:700; margin-bottom:10px;">📊 ANALYZE TRENDS</button>
+                    <button onclick="askBot('Analyze current Haryanvi trends and give a report')" style="background:var(--primary); width:100%; color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:700; margin-bottom:10px; margin-top:20px;">📊 ANALYZE TRENDS</button>
                     <div id="trend-box" style="margin-top:15px; font-size:14px; color:#DDD;"></div>
                 </div>
 
                 <div class="card">
                     <h3>📅 Content Calendar</h3>
-                    <p style="color:var(--dim); margin-bottom:20px;">Generate a posting schedule based on viral clips.</p>
-                    <button onclick="askBot('Generate a content calendar for next week based on my clips')" style="background:#00FF7F; width:100%; color:black; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:700; margin-bottom:10px;">🗓️ MAKE CALENDAR</button>
+                    <button onclick="askBot('Generate a content calendar for next week based on my clips')" style="background:#00FF7F; width:100%; color:black; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:700; margin-bottom:10px; margin-top:20px;">🗓️ MAKE CALENDAR</button>
                     <div id="calendar-box" style="margin-top:15px; font-size:14px; color:#DDD;"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- SETTINGS PAGE -->
-        <div id="p-settings" class="page" style="display:none;">
-            <h1>Settings ⚙️</h1>
-            <div class="card" style="max-width:500px">
-                <label style="display:block; margin-bottom:10px; color:var(--dim);">WhatsApp Phone ID</label>
-                <input type="text" value="${PHONE_ID}" disabled style="width:100%; padding:10px; background:rgba(255,255,255,0.05); border:none; color:white; border-radius:5px; margin-bottom:20px;">
-                
-                <label style="display:block; margin-bottom:10px; color:var(--dim);">System Status</label>
-                <div style="display:flex; align-items:center; gap:10px; color:#00FF7F;">
-                    <div style="width:10px; height:10px; background:#00FF7F; border-radius:50%;"></div>
-                    Active & Listening
                 </div>
             </div>
         </div>
@@ -397,15 +393,15 @@ HTML_UI = """
     <script>
         function go(p) {
             document.querySelectorAll('.page').forEach(x=>x.style.display='none');
-            // Remove active from all nav items
             document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
-            // Show target page
             document.getElementById('p-'+p).style.display='block';
             
-            // Highlight nav item (simple hack: find by text content or index)
-            // For now, assume clicked element handles it via 'event', or we re-select based on index
-            // But since 'go' is called inline, 'event.currentTarget' works if triggered by click
-            if(window.event) window.event.currentTarget.classList.add('active');
+            // Highlight nav item
+            const items = document.querySelectorAll('.nav-item');
+            if(p === 'factory') items[0].classList.add('active');
+            if(p === 'dash') items[1].classList.add('active');
+            if(p === 'clipper') items[2].classList.add('active');
+            if(p === 'strat') items[3].classList.add('active');
             
             if(p=='dash') refresh();
             if(p=='clipper') refreshClips();
@@ -414,61 +410,57 @@ HTML_UI = """
         async function submitFactory() {
             const url = document.getElementById('factory-url').value;
             const useCloud = document.getElementById('use-cloud').checked;
-            
             if(!url) return alert("URL to daalo bhai!");
-            
-            document.getElementById('factory-status').innerText = "Starting Engine... 🚜";
             
             const r = await fetch('/api/chat', {
                 method:'POST', 
                 headers:{'Content-Type':'application/json'}, 
-                body:JSON.stringify({
-                    message: "Clip this video: " + url,
-                    use_cloud: useCloud
-                })
+                body:JSON.stringify({ message: "Clip this video: " + url, use_cloud: useCloud })
             });
             const d = await r.json();
-            document.getElementById('factory-status').innerText = "✅ Started! Switching to Monitor...";
             document.getElementById('factory-url').value = "";
-            
-            // Auto-switch to Monitor tab after 1s
-            setTimeout(() => {
-                go('dash');
-            }, 1000);
-            
             append(d.reply, false); 
+            go('dash');
+        }
+
+        async function deleteTask(pid) {
+            if(!confirm("Bhai, delete kar doon?")) return;
+            const r = await fetch('/api/delete_task/' + pid, { method: 'DELETE' });
+            if(r.ok) {
+                refresh();
+                refreshClips();
+            }
         }
 
         async function refresh() {
             const r = await fetch('/api/tasks');
             const data = await r.json();
             
-            // Client-Side Polling for Vizard (Serverless Fix)
             data.forEach(t => {
-                if(t.status === 'processing' && t.provider === 'vizard') {
-                    fetch('/api/sync_vizard/' + t.project_id); // Fire and forget
-                }
+                if(t.status === 'processing' && t.provider === 'vizard') fetch('/api/sync_vizard/' + t.project_id);
             });
 
             document.getElementById('log-body').innerHTML = data.map(t => {
                 let progress = 0;
-                if(t.status === 'completed') progress = 100;
-                else if(t.status === 'processing') progress = 45; 
-                else if(t.status === 'submitting') progress = 15;
+                let statusClass = t.status.split(':')[0].trim().toLowerCase();
+                if(statusClass === 'completed') progress = 100;
+                else if(statusClass === 'processing') progress = 45; 
+                else if(statusClass === 'submitting') progress = 15;
                 
                 return `
                 <tr>
                     <td>${t.timestamp.split(' ')[1]}</td>
                     <td>${t.sender}</td>
                     <td>${t.provider ? t.provider.toUpperCase() : 'LOCAL'}</td>
-                    <td><a href="${t.url}" target="_blank" style="color:var(--text-dim); text-decoration:none; font-size:11px;">${t.url.substring(0,30)}...</a><br><code>${t.project_id}</code></td>
+                    <td><a href="${t.url}" target="_blank" style="color:var(--dim); text-decoration:none; font-size:11px;">${t.url.substring(0,25)}...</a><br><code>${t.project_id}</code></td>
                     <td>
-                        <span class="badge ${t.status}">${t.status}</span>
-                        ${t.status !== 'completed' && t.status !== 'failed' ? `
-                        <div class="progress-container">
-                            <div class="progress-bar" style="width: ${progress}%"></div>
-                        </div>
+                        <span class="badge ${statusClass}">${t.status}</span>
+                        ${statusClass === 'processing' || statusClass === 'submitting' ? `
+                        <div class="progress-container"><div class="progress-bar" style="width: ${progress}%"></div></div>
                         ` : ''}
+                    </td>
+                    <td>
+                        <i class="fas fa-trash delete-btn" onclick="deleteTask('${t.project_id}')"></i>
                     </td>
                 </tr>
             `}).join('');
@@ -478,19 +470,23 @@ HTML_UI = """
             const r = await fetch('/api/tasks');
             const data = await r.json();
             const list = document.getElementById('clip-results');
-            const filtered = data.filter(t => t.clips_json);
-            if(!filtered.length) { list.innerHTML = "No clips yet."; return; }
-            list.innerHTML = filtered.map(t => {
-                const clips = JSON.parse(t.clips_json);
+            
+            if(!data.length) { list.innerHTML = "<p style='color:var(--dim)'>No tasks found.</p>"; return; }
+            
+            list.innerHTML = data.map(t => {
+                const clips = t.clips_json ? JSON.parse(t.clips_json) : [];
                 return `
-                    <div class="card" style="margin-bottom:20px;">
-                        <h3 style="margin-bottom:15px;">Project: ${t.project_id}</h3>
-                        ${clips.map(c => `
-                            <div style="padding:15px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-                                <span>${c.title}</span>
-                                <a href="${c.videoUrl}" style="color:var(--primary); font-weight:700;" target="_blank">Download</a>
+                    <div class="clip-card">
+                        <i class="fas fa-trash delete-btn" onclick="deleteTask('${t.project_id}')"></i>
+                        <h3 style="margin-bottom:10px; font-size:16px;">${t.project_id}</h3>
+                        <p style="font-size:12px; color:var(--dim); margin-bottom:15px;">Source: ${t.provider || 'Local'}</p>
+                        
+                        ${clips.length > 0 ? clips.map(c => `
+                            <div style="padding:10px 0; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-size:13px;">${c.title}</span>
+                                <a href="${c.videoUrl}" style="color:var(--primary); font-weight:700; font-size:12px;" target="_blank">VIEW</a>
                             </div>
-                        `).join('')}
+                        `).join('') : `<p style="color:orange; font-size:13px;">Status: ${t.status}</p>`}
                     </div>
                 `;
             }).join('');
@@ -517,16 +513,16 @@ HTML_UI = """
         async function askBot(prompt) {
             let container = 'trend-box';
             if(prompt.includes('calendar')) container = 'calendar-box';
-            
             const box = document.getElementById(container);
-            box.innerText = "Analyzing... (this may take a moment)";
-            
+            box.innerText = "Analyzing...";
             const r = await fetch('/api/chat', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message: prompt})});
             const d = await r.json();
             box.innerText = d.reply;
         }
 
-        setInterval(() => { if(document.getElementById('p-dash').style.display!='none') refresh(); }, 8000);
+        setInterval(() => { 
+            if(document.getElementById('p-dash').style.display!='none') refresh(); 
+        }, 10000);
         refresh();
     </script>
 </body>
@@ -630,6 +626,18 @@ def webhook():
         traceback.print_exc()
 
     return "OK", 200
+
+@app.route("/api/delete_task/<project_id>", methods=["DELETE"])
+def delete_task(project_id):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM tasks WHERE project_id=?", (project_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "deleted"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/health", methods=["GET"])
 def health():
