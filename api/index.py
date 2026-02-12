@@ -121,6 +121,30 @@ HTML_UI = """
         .chat-input-area input { flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border); padding: 12px 18px; border-radius: 12px; color: white; outline: none; }
         .btn-chat { background: var(--text-main); color: var(--bg-dark); border: none; border-radius: 12px; padding: 0 15px; cursor: pointer; }
 
+        /* Loader / Typing Animation */
+        .typing-bubble {
+            background: rgba(255,255,255,0.05);
+            padding: 12px 18px;
+            border-radius: 18px;
+            display: flex;
+            gap: 5px;
+            width: fit-content;
+            margin-bottom: 15px;
+        }
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: var(--text-dim);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
     </style>
@@ -177,12 +201,12 @@ HTML_UI = """
 
         <!-- Right Panel (AI Assistant) -->
         <div class="chat-panel">
-            <div class="chat-header">Biru Bhai Copilot 🧠</div>
+            <div class="chat-header">Biru Bhai ka Chela 🧠</div>
             <div id="chat-messages">
-                <div class="msg ai">Ram Ram bhai! 👋 Swagat hai Biru Bhai Factory mein. Koi bhi video link paste kar aur 'Start' daba, baaki main sambhal lunga!</div>
+                <div class="msg ai">Ram Ram ji! 👋 Main Biru Bhai ka chela hoon. Biru Bhai ne aapki sewa ke liye mujhe yahan rakha hai.<br><br>Aap batayein, aapki kya madad kar sakta hoon? Aap koi bhi video link bhej sakte hain, main turant Biru Bhai ki factory mein bhej dunga.</div>
             </div>
             <div class="chat-input-area">
-                <input type="text" id="chat-query" placeholder="Sawal pucho..." onkeypress="handleChatEnter(event)">
+                <input type="text" id="chat-query" placeholder="Aapka kya hukum hai..." onkeypress="handleChatEnter(event)">
                 <button class="btn-chat" onclick="sendChatMessage()"><i class="fas fa-paper-plane"></i></button>
             </div>
         </div>
@@ -199,6 +223,20 @@ HTML_UI = """
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
+        function showTyping() {
+            const div = document.createElement('div');
+            div.className = 'typing-bubble';
+            div.id = 'typing-indicator';
+            div.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+            chatContainer.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function hideTyping() {
+            const indicator = document.getElementById('typing-indicator');
+            if(indicator) indicator.remove();
+        }
+
         async function sendChatMessage() {
             const input = document.getElementById('chat-query');
             const text = input.value.trim();
@@ -206,6 +244,7 @@ HTML_UI = """
             appendChat(text, true);
             input.value = '';
             
+            showTyping();
             try {
                 const res = await fetch('/api/chat', {
                     method: 'POST',
@@ -213,9 +252,11 @@ HTML_UI = """
                     body: JSON.stringify({ message: text })
                 });
                 const data = await res.json();
+                hideTyping();
                 appendChat(data.reply, false);
             } catch {
-                appendChat("Arre bhai, dimaag ghum gaya server ka!", false);
+                hideTyping();
+                appendChat("Maaf kijiyega, lagta hai koi takneeki kharabi hai.", false);
             }
         }
 
@@ -229,12 +270,14 @@ HTML_UI = """
             appendChat(`/cut ${url}`, true);
             urlInput.value = '';
             
+            showTyping();
             const res = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ message: `/cut ${url}` })
             });
             const data = await res.json();
+            hideTyping();
             appendChat(data.reply, false);
         }
     </script>
@@ -253,37 +296,37 @@ def send_wa_message(to, text):
 def handle_logic(text):
     if text.startswith("/cut"):
         if not VIZARD_API_KEY:
-            return "❌ Vizard API Key missing! Setup environment variables in Vercel."
+            return "❌ Maaf kijiye, Vizard API Key missing hai. Aap admin se sampark karein."
         
         parts = text.split()
         url = parts[1] if len(parts) > 1 else ""
         if not url:
-            return "❌ Link toh bhej bhai! Example: `/cut https://youtu.be/...`"
+            return "❌ Aap kripya link toh bhejिये! Jaise ki: `/cut https://youtu.be/...`"
 
         try:
             vizard = VizardAgent(api_key=VIZARD_API_KEY)
             project_id = vizard.submit_video(url)
             if project_id:
-                return f"🚀 **Vizard AI active!**\\nYour project has been submitted.\\n**Project ID:** `{project_id}`\\n\\nProcessing shuru ho gayi hai. Done hone ke baad yahan dashboard pe clips dikh jayenge."
+                return f"🚀 **Hukum sar aankhon par!**\\nAapka video maine Biru Bhai ki factory mein bhej diya hai.\\n**Project ID:** `{project_id}`\\n\\nKripya thoda dhairya rakhein, kaam shuru ho gaya hai."
             else:
-                return "❌ Vizard submission fail ho gaya. API respond nahi kar rahi."
+                return "❌ Maaf kijiye, submission mein koi dikakat aayi hai."
         except Exception as e:
-            return f"❌ Submission Error: {str(e)}"
+            return f"❌ Kshama kijiye, error aaya hai: {str(e)}"
     
-    if not OPENAI_API_KEY: return "Ram Ram! Dashboard active hai, par OpenAI key ke bina chat nahi kar sakta."
+    if not OPENAI_API_KEY: return "Ram Ram! Main Biru Bhai ka chela hoon, par bina OpenAI key ke main baatein nahi kar sakta."
     
     try:
         client = OpenAI(api_key=OPENAI_API_KEY)
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are Biru Bhai AI, a funny Haryanvi co-pilot. You help users process videos using Vizard AI. Be helpful but stay in character."},
+                {"role": "system", "content": "You are 'Biru Bhai ka Chela' (Biru Bhai's Assistant/Disciple). You are extremely respectful and always address the user as 'Aap' (honorific). Your tone should be polite and formal, but with a slight Desi/Haryanvi touch that reflects your loyalty to Biru Bhai. You help users process videos using Vizard AI. Example: 'Aap kaise hain?', 'Aap batayein kya hukum hai?'"},
                 {"role": "user", "content": text}
             ]
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"Arre bhai error aa gaya: {str(e)}"
+        return f"Arre maaf kijiye, error aa gaya: {str(e)}"
 
 # --- ROUTES ---
 @app.route("/", methods=["GET"])
