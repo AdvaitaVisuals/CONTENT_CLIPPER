@@ -17,247 +17,225 @@ VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN", "bot")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 VIZARD_API_KEY = os.environ.get("VIZARD_API_KEY", "")
 
-# --- HTML UI ---
+# --- PREMIUM DASHBOARD UI ---
 HTML_UI = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Biru Bhai AI | Control Center</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <title>Biru Bhai AI | Video Factory</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --primary: #FF3D00;
+            --primary-glow: rgba(255, 61, 0, 0.4);
             --secondary: #2979FF;
-            --bg: #050505;
-            --glass: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(255, 255, 255, 0.1);
+            --bg-dark: #0A0A0B;
+            --card-bg: rgba(20, 20, 22, 0.7);
+            --border: rgba(255, 255, 255, 0.08);
+            --text-main: #FFFFFF;
+            --text-dim: #A0A0A5;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
-        
-        body { 
-            background: var(--bg); 
-            color: white; 
-            overflow: hidden;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        body { background-color: var(--bg-dark); color: var(--text-main); height: 100vh; overflow: hidden; }
+
+        /* Background Effects */
+        .bg-glow {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+            background: radial-gradient(circle at 10% 20%, rgba(255, 61, 0, 0.05) 0%, transparent 40%),
+                        radial-gradient(circle at 90% 80%, rgba(41, 121, 255, 0.05) 0%, transparent 40%);
         }
 
-        /* Background Glows */
-        .glow {
-            position: absolute;
-            width: 400px;
-            height: 400px;
-            background: var(--primary);
-            filter: blur(150px);
-            opacity: 0.15;
-            z-index: -1;
-            animation: pulse 10s infinite alternate;
-        }
-        .glow-top { top: -10%; left: -10%; }
-        .glow-bottom { bottom: -10%; right: -10%; background: var(--secondary); }
+        .main-layout { display: grid; grid-template-columns: 280px 1fr 350px; height: 100vh; }
 
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 0.1; }
-            100% { transform: scale(1.5); opacity: 0.2; }
+        /* Sidebar */
+        aside {
+            background: rgba(13, 13, 15, 0.8);
+            border-right: 1px solid var(--border);
+            padding: 40px 25px;
+            display: flex; flex-direction: column; gap: 40px;
         }
 
-        /* Main Container */
-        .container {
-            width: 90%;
-            max-width: 1000px;
-            height: 85vh;
-            background: var(--glass);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border);
-            border-radius: 30px;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
-            position: relative;
+        .brand { font-size: 28px; font-weight: 900; letter-spacing: -1.5px; color: var(--primary); display: flex; align-items: center; gap: 12px; }
+        .brand i { font-size: 22px; color: var(--text-main); }
+
+        .nav-links { display: flex; flex-direction: column; gap: 10px; }
+        .nav-item {
+            padding: 14px 20px; border-radius: 12px; color: var(--text-dim); text-decoration: none;
+            display: flex; align-items: center; gap: 15px; font-weight: 500; transition: 0.3s;
+        }
+        .nav-item:hover, .nav-item.active { background: rgba(255, 255, 255, 0.05); color: var(--text-main); }
+        .nav-item.active { border-left: 4px solid var(--primary); color: var(--primary); background: rgba(255, 61, 0, 0.05); }
+
+        /* Content Area */
+        main { padding: 40px; overflow-y: auto; }
+        .section-header { margin-bottom: 30px; }
+        .section-header h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+        .section-header p { color: var(--text-dim); }
+
+        /* Video Factory Card */
+        .factory-card {
+            background: var(--card-bg); backdrop-filter: blur(15px);
+            border: 1px solid var(--border); border-radius: 24px; padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3); margin-bottom: 40px;
         }
 
-        /* Header */
-        header {
-            padding: 25px 40px;
-            border-bottom: 1px solid var(--glass-border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .input-group { position: relative; display: flex; gap: 15px; }
+        .input-group input {
+            flex: 1; background: rgba(0,0,0,0.2); border: 2px solid var(--border);
+            padding: 20px 25px; border-radius: 16px; color: white; font-size: 16px; outline: none; transition: 0.3s;
         }
+        .input-group input:focus { border-color: var(--primary); box-shadow: 0 0 20px var(--primary-glow); }
 
-        .logo {
-            font-size: 24px;
-            font-weight: 800;
-            letter-spacing: -1px;
-            background: linear-gradient(90deg, #FF3D00, #FFEA00);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .btn-factory {
+            background: var(--primary); color: white; border: none; padding: 0 35px; border-radius: 16px;
+            font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 16px;
         }
+        .btn-factory:hover { transform: translateY(-3px); box-shadow: 0 10px 20px var(--primary-glow); }
 
-        .status {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 14px;
-            color: #AAA;
+        /* Project Grid */
+        .grid-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .project-card {
+            background: var(--card-bg); border: 1px solid var(--border); border-radius: 20px;
+            padding: 20px; display: flex; flex-direction: column; gap: 15px; position: relative;
         }
+        .project-status { position: absolute; top: 15px; right: 15px; font-size: 11px; padding: 4px 10px; border-radius: 20px; background: rgba(0, 230, 118, 0.1); color: #00E676; }
 
-        .pulse-dot {
-            width: 10px;
-            height: 10px;
-            background: #00E676;
-            border-radius: 50%;
-            box-shadow: 0 0 10px #00E676;
-            animation: blink 1.5s infinite;
+        /* Right Panel (Chat) */
+        .chat-panel {
+            background: rgba(13, 13, 15, 0.8);
+            border-left: 1px solid var(--border);
+            display: flex; flex-direction: column;
         }
+        .chat-header { padding: 30px; border-bottom: 1px solid var(--border); font-weight: 700; }
+        #chat-messages { flex: 1; padding: 25px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        .msg { padding: 12px 18px; border-radius: 18px; max-width: 85%; font-size: 15px; line-height: 1.4; }
+        .msg.ai { align-self: flex-start; background: rgba(255,255,255,0.05); color: #DDD; }
+        .msg.user { align-self: flex-end; background: var(--secondary); color: white; }
 
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .chat-input-area { padding: 25px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
+        .chat-input-area input { flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border); padding: 12px 18px; border-radius: 12px; color: white; outline: none; }
+        .btn-chat { background: var(--text-main); color: var(--bg-dark); border: none; border-radius: 12px; padding: 0 15px; cursor: pointer; }
 
-        /* Chat Area */
-        #chat-window {
-            flex: 1;
-            padding: 30px 40px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            scroll-behavior: smooth;
-        }
-
-        .message {
-            max-width: 70%;
-            padding: 15px 20px;
-            border-radius: 20px;
-            font-size: 16px;
-            line-height: 1.5;
-            animation: slideIn 0.3s ease-out;
-        }
-
-        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        .ai-msg {
-            align-self: flex-start;
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
-            border-bottom-left-radius: 5px;
-        }
-
-        .user-msg {
-            align-self: flex-end;
-            background: linear-gradient(135deg, var(--secondary), #00B0FF);
-            color: white;
-            border-bottom-right-radius: 5px;
-        }
-
-        /* Input Area */
-        .input-area {
-            padding: 30px 40px;
-            border-top: 1px solid var(--glass-border);
-            display: flex;
-            gap: 15px;
-        }
-
-        input {
-            flex: 1;
-            background: rgba(255,255,255,0.03);
-            border: 1px solid var(--glass-border);
-            padding: 18px 25px;
-            border-radius: 15px;
-            color: white;
-            font-size: 16px;
-            outline: none;
-            transition: 0.3s;
-        }
-
-        input:focus { border-color: var(--secondary); background: rgba(255,255,255,0.06); }
-
-        button {
-            background: white;
-            color: black;
-            border: none;
-            padding: 0 30px;
-            border-radius: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        button:hover { background: var(--secondary); color: white; transform: translateY(-2px); }
-
-        /* Loader */
-        .typing { font-style: italic; color: #888; font-size: 13px; }
-
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
     </style>
 </head>
 <body>
-    <div class="glow glow-top"></div>
-    <div class="glow glow-bottom"></div>
-
-    <div class="container">
-        <header>
-            <div class="logo">BIRU BHAI AI</div>
-            <div class="status">
-                <div class="pulse-dot"></div>
-                FACTORY ONLINE
+    <div class="bg-glow"></div>
+    <div class="main-layout">
+        <!-- Sidebar -->
+        <aside>
+            <div class="brand">
+                <i class="fas fa-tractor"></i>
+                BIRU BHAI
             </div>
-        </header>
+            <nav class="nav-links">
+                <a href="#" class="nav-item active"><i class="fas fa-chart-line"></i> Dashboard</a>
+                <a href="#" class="nav-item"><i class="fas fa-video"></i> Video Factory</a>
+                <a href="#" class="nav-item"><i class="fas fa-scissors"></i> Clipper</a>
+                <a href="#" class="nav-item"><i class="fas fa-magic"></i> AI Strategies</a>
+                <a href="#" class="nav-item"><i class="fas fa-cog"></i> Settings</a>
+            </nav>
+        </aside>
 
-        <div id="chat-window">
-            <div class="message ai-msg">Ram Ram bhai! 👋 Main hoon Biru Bhai AI. <br><br>Mere se chat bhi kar sake hai aur `/cut URL` bhej ke clips bhi banwa sake hai. Bata ke sewa karu?</div>
-        </div>
+        <!-- Main Content (Video Factory) -->
+        <main>
+            <div class="section-header">
+                <h1>Video Factory 🦾</h1>
+                <p>Paste your long video link and let the AI extract viral moments.</p>
+            </div>
 
-        <div class="input-area">
-            <input type="text" id="user-input" placeholder="Aaun de message... (e.g. /cut https://youtu.be/...)" onkeypress="handleEnter(event)">
-            <button onclick="sendMessage()">SEND</button>
+            <div class="factory-card">
+                <div class="input-group">
+                    <input type="text" id="video-url" placeholder="Paste YouTube Link (e.g. https://youtu.be/...)">
+                    <button class="btn-factory" onclick="startFactory()">START FACTORY</button>
+                </div>
+            </div>
+
+            <div class="grid-header">
+                <h2>Recent Projects</h2>
+                <span style="color: var(--text-dim); font-size: 14px;">Total: <span id="proj-count">0</span></span>
+            </div>
+
+            <div class="project-grid" id="project-list">
+                <!-- Project Cards go here -->
+                <div class="project-card">
+                    <div class="project-status">READY</div>
+                    <div style="font-weight: 600;">YouTube Clip Analysis</div>
+                    <div style="color: var(--text-dim); font-size: 13px;">ID: #vzd_8921...</div>
+                    <div style="margin-top: 10px; display: flex; gap: 10px;">
+                        <button style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: white; padding: 8px; border-radius: 8px; cursor: pointer; font-size: 12px;">View Clips</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Panel (AI Assistant) -->
+        <div class="chat-panel">
+            <div class="chat-header">Biru Bhai Copilot 🧠</div>
+            <div id="chat-messages">
+                <div class="msg ai">Ram Ram bhai! 👋 Swagat hai Biru Bhai Factory mein. Koi bhi video link paste kar aur 'Start' daba, baaki main sambhal lunga!</div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-query" placeholder="Sawal pucho..." onkeypress="handleChatEnter(event)">
+                <button class="btn-chat" onclick="sendChatMessage()"><i class="fas fa-paper-plane"></i></button>
+            </div>
         </div>
     </div>
 
     <script>
-        const chatWindow = document.getElementById('chat-window');
-        const userInput = document.getElementById('user-input');
+        const chatContainer = document.getElementById('chat-messages');
 
-        function appendMessage(text, isUser) {
+        function appendChat(text, isUser) {
             const div = document.createElement('div');
-            div.className = `message ${isUser ? 'user-msg' : 'ai-msg'}`;
+            div.className = `msg ${isUser ? 'user' : 'ai'}`;
             div.innerHTML = text.replace(/\\n/g, '<br>');
-            chatWindow.appendChild(div);
-            chatWindow.scrollTop = chatWindow.scrollHeight;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        function handleEnter(e) { if (e.key === 'Enter') sendMessage(); }
-
-        async function sendMessage() {
-            const text = userInput.value.trim();
-            if (!text) return;
-
-            appendMessage(text, true);
-            userInput.value = '';
-
-            const typing = document.createElement('div');
-            typing.className = 'typing';
-            typing.innerText = 'Biru Bhai soch raha hai...';
-            chatWindow.appendChild(typing);
-
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-query');
+            const text = input.value.trim();
+            if(!text) return;
+            appendChat(text, true);
+            input.value = '';
+            
             try {
-                const response = await fetch('/api/chat', {
+                const res = await fetch('/api/chat', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ message: text })
                 });
-                const data = await response.json();
-                typing.remove();
-                appendMessage(data.reply, false);
-            } catch (err) {
-                typing.remove();
-                appendMessage("Arre bhai, network mein thodi gadbad hai!", false);
+                const data = await res.json();
+                appendChat(data.reply, false);
+            } catch {
+                appendChat("Arre bhai, dimaag ghum gaya server ka!", false);
             }
+        }
+
+        function handleChatEnter(e) { if(e.key === 'Enter') sendChatMessage(); }
+
+        async function startFactory() {
+            const urlInput = document.getElementById('video-url');
+            const url = urlInput.value.trim();
+            if(!url) return;
+            
+            appendChat(`/cut ${url}`, true);
+            urlInput.value = '';
+            
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ message: `/cut ${url}` })
+            });
+            const data = await res.json();
+            appendChat(data.reply, false);
         }
     </script>
 </body>
@@ -273,39 +251,39 @@ def send_wa_message(to, text):
     requests.post(url, headers=headers, json=payload)
 
 def handle_logic(text):
-    """Core logic shared between WhatsApp and Web UI"""
     if text.startswith("/cut"):
         if not VIZARD_API_KEY:
-            return "❌ Vizard API Key missing hai bhai! Admin se bolo setup kare."
+            return "❌ Vizard API Key missing! Setup environment variables in Vercel."
         
         parts = text.split()
         url = parts[1] if len(parts) > 1 else ""
         if not url:
-            return "❌ Bhai link toh bhej! Example: `/cut https://youtu.be/...`"
+            return "❌ Link toh bhej bhai! Example: `/cut https://youtu.be/...`"
 
-        vizard = VizardAgent(api_key=VIZARD_API_KEY)
-        project_id = vizard.submit_video(url)
-        if project_id:
-            return f"🚀 **Vizard AI active!**\\nYour project has been submitted.\\n**Project ID:** `{project_id}`\\n\\nProcessing shuru ho gayi hai, thoda sabar rakho!"
-        else:
-            return "❌ Vizard submission fail ho gaya. Link sahi hai kya?"
+        try:
+            vizard = VizardAgent(api_key=VIZARD_API_KEY)
+            project_id = vizard.submit_video(url)
+            if project_id:
+                return f"🚀 **Vizard AI active!**\\nYour project has been submitted.\\n**Project ID:** `{project_id}`\\n\\nProcessing shuru ho gayi hai. Done hone ke baad yahan dashboard pe clips dikh jayenge."
+            else:
+                return "❌ Vizard submission fail ho gaya. API respond nahi kar rahi."
+        except Exception as e:
+            return f"❌ Submission Error: {str(e)}"
     
-    # AI Chat
-    if not OPENAI_API_KEY:
-        return "👋 Main hoon Biru Bhai! AI baatein karne ke liye OpenAI key mang rahi hai."
+    if not OPENAI_API_KEY: return "Ram Ram! Dashboard active hai, par OpenAI key ke bina chat nahi kar sakta."
     
     try:
         client = OpenAI(api_key=OPENAI_API_KEY)
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are Biru Bhai AI. Speak in Desi Hindi/Haryanvi style. You help people with Vizard AI clips."},
+                {"role": "system", "content": "You are Biru Bhai AI, a funny Haryanvi co-pilot. You help users process videos using Vizard AI. Be helpful but stay in character."},
                 {"role": "user", "content": text}
             ]
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"Error ho gaya bhai: {str(e)}"
+        return f"Arre bhai error aa gaya: {str(e)}"
 
 # --- ROUTES ---
 @app.route("/", methods=["GET"])
@@ -315,8 +293,7 @@ def index():
 @app.route("/api/chat", methods=["POST"])
 def web_chat():
     data = request.json
-    user_text = data.get("message", "")
-    reply = handle_logic(user_text)
+    reply = handle_logic(data.get("message", ""))
     return jsonify({"reply": reply})
 
 @app.route("/webhook", methods=["GET", "POST"])
@@ -331,18 +308,12 @@ def webhook():
 
     data = request.json
     try:
-        entry = data.get("entry", [{}])[0]
-        changes = entry.get("changes", [{}])[0]
-        value = changes.get("value", {})
+        value = data.get("entry", [{}])[0].get("changes", [{}])[0].get("value", {})
         if "messages" in value:
-            message = value["messages"][0]
-            sender = message["from"]
-            text = message.get("text", {}).get("body", "")
-            if text:
-                reply = handle_logic(text)
-                send_wa_message(sender, reply)
-    except:
-        pass
+            msg = value["messages"][0]
+            reply = handle_logic(msg.get("text", {}).get("body", ""))
+            send_wa_message(msg["from"], reply)
+    except: pass
     return "OK", 200
 
 if __name__ == "__main__":
