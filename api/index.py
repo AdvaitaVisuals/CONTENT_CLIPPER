@@ -346,7 +346,7 @@ HTML_UI = """
 </head>
 <body>
     <aside>
-        <div class="logo"><i class="fas fa-tractor"></i> BIRU ADMIN (v3.1)</div>
+        <div class="logo"><i class="fas fa-tractor"></i> BIRU ADMIN (v3.2)</div>
         <div class="nav">
             <div class="nav-item active" onclick="go('factory')"><i class="fas fa-industry"></i> Factory</div>
             <div class="nav-item" onclick="go('dash')"><i class="fas fa-desktop"></i> Monitor</div>
