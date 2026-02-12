@@ -4,10 +4,6 @@ import json
 import subprocess
 import shutil
 import imageio_ffmpeg
-from agents.understanding_agent import UnderstandingAgent
-from agents.viral_cutter_agent import ViralCutterAgent
-from agents.frame_power_agent import FramePowerAgent
-from agents.caption_agent import CaptionAgent
 
 # Ensure FFmpeg is in PATH for Whisper and other libraries
 ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
@@ -15,6 +11,12 @@ ffmpeg_dir = os.path.dirname(ffmpeg_exe)
 if ffmpeg_dir not in os.environ["PATH"]:
     print(f"Adding FFmpeg to PATH: {ffmpeg_dir}")
     os.environ["PATH"] += os.pathsep + ffmpeg_dir
+
+from agents.understanding_agent import UnderstandingAgent
+from agents.viral_cutter_agent import ViralCutterAgent
+from agents.frame_power_agent import FramePowerAgent
+from agents.caption_agent import CaptionAgent
+from orchestrator import ArtistOrchestrator
 
 def download_youtube_video(url, output_dir):
     """Downloads a YouTube video using yt-dlp."""
@@ -285,5 +287,31 @@ def main():
     print(f"Captions saved to: {os.path.join(args.output_dir, 'captions.json')}")
     print(f"Posters saved to: {posters_dir}")
 
+def main_orchestrated():
+    """Full 8-agent pipeline via orchestrator"""
+    parser = argparse.ArgumentParser(description="Process video with full 8-agent pipeline")
+    parser.add_argument("video_source", help="YouTube URL or local video path")
+    parser.add_argument("--output_dir", default="output", help="Base output directory")
+    parser.add_argument("--vibe", default="desi", choices=["desi", "sad", "akad", "gaon", "romantic", "party"])
+    parser.add_argument("--days", type=int, default=15, help="Content calendar duration")
+    parser.add_argument("--cloud", action="store_true", help="Use Vizard AI cloud processing")
+    args = parser.parse_args()
+
+    orch = ArtistOrchestrator(output_base=args.output_dir)
+    result = orch.process(
+        video_source=args.video_source,
+        vibe=args.vibe,
+        duration_days=args.days,
+        use_cloud=args.cloud
+    )
+
+    print(json.dumps(result, indent=2, default=str))
+
 if __name__ == "__main__":
-    main()
+    # Use --full flag for 8-agent pipeline, otherwise legacy 4-agent
+    import sys
+    if "--full" in sys.argv:
+        sys.argv.remove("--full")
+        main_orchestrated()
+    else:
+        main()

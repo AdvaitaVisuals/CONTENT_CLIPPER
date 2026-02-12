@@ -106,43 +106,50 @@ def run_vizard_processor(project_id, url, sender):
         print(f"❌ [VIZARD ERROR] {e}")
         update_db_task(project_id, "failed", error_msg=str(e))
 
-# --- LOCAL PROCESSING LOGIC ---
+# --- LOCAL PROCESSING LOGIC (Full 8-Agent Pipeline) ---
 def run_local_processor(project_id, url, sender):
-    print(f"🚜 [FACTORY] Starting Local Engine for Project: {project_id}")
+    print(f"🚜 [FACTORY] Starting Full 8-Agent Pipeline: {project_id}")
     update_db_task(project_id, "processing", provider="local")
-    
+
     try:
         if os.environ.get("VERCEL"):
-            # Local engine cannot run on Vercel
-            print("❌ [FAIL] Cannot run Local Engine on Vercel (Time/Memory Limit). Use Vizard Mode.")
+            print("❌ [FAIL] Cannot run Local Engine on Vercel. Use Vizard Mode.")
             update_db_task(project_id, "failed", error_msg="Local Engine Blocked on Vercel")
             return
 
-        import subprocess
-        work_dir = f"output_{project_id}"
-        os.makedirs(work_dir, exist_ok=True)
-        
-        cmd = ["python", "process_video.py", url, "--output_dir", work_dir]
-        print(f"🏃 [RUNNING]: {' '.join(cmd)}")
-        
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        stdout, stderr = process.communicate()
-        
-        if process.returncode == 0:
-            print(f"✅ [DONE] Project {project_id} finished successfully.")
-            reels_dir = os.path.join(work_dir, "reels")
+        from orchestrator import ArtistOrchestrator
+        orch = ArtistOrchestrator(output_base="output", vizard_api_key=VIZARD_API_KEY)
+        result = orch.process(
+            video_source=url,
+            project_id=project_id,
+            use_cloud=False
+        )
+
+        if result.get("status") in ("completed", "completed_with_warnings"):
+            print(f"✅ [DONE] Project {project_id} - {result.get('clips_count', 0)} clips")
+
+            # Collect clip files for DB
             clips = []
-            if os.path.exists(reels_dir):
-                for f in os.listdir(reels_dir):
-                    if f.endswith(".mp4"):
-                         clips.append({"title": f, "videoUrl": f"/outputs/{project_id}/{f}"})
-            
+            work_dir = os.path.join("output", project_id)
+            clips_dir = os.path.join(work_dir, "clips")
+            reels_dir = os.path.join(work_dir, "reels")
+
+            for d in [reels_dir, clips_dir]:
+                if os.path.exists(d):
+                    for f in os.listdir(d):
+                        if f.endswith(".mp4"):
+                            clips.append({"title": f, "videoUrl": f"/outputs/{project_id}/{f}"})
+
             update_db_task(project_id, "completed", clips=clips)
+
+            # WhatsApp notification with strategy summary
             if sender and sender != "Admin_Web":
-                send_wa_message(sender, f"✅ **Bhai, factory ka maal ready hai!**\nClips generate ho gayi hain.")
+                summary = orch.get_whatsapp_summary(project_id)
+                send_wa_message(sender, summary)
         else:
-            print(f"❌ [FAIL] Project {project_id} error: {stderr}")
-            update_db_task(project_id, "failed", error_msg=stderr)
+            errors = ", ".join(result.get("errors", [])[:2])
+            print(f"❌ [FAIL] Project {project_id}: {errors}")
+            update_db_task(project_id, "failed", error_msg=errors)
 
     except Exception as e:
         print(f"❌ [CORE ERROR] {e}")
@@ -550,6 +557,17 @@ def chat():
     use_cloud = data.get("use_cloud", False)
     reply = handle_universal(data.get("message", ""), "Admin_Web", "web", use_cloud=use_cloud)
     return jsonify({"reply": reply})
+
+@app.route("/api/project/<project_id>", methods=["GET"])
+def get_project_detail(project_id):
+    """Get full orchestrator pipeline result for a project"""
+    try:
+        from orchestrator import ArtistOrchestrator
+        orch = ArtistOrchestrator(output_base="output")
+        status = orch.get_project_status(project_id)
+        return jsonify(status)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
