@@ -144,6 +144,11 @@ HTML_UI = """
         .badge.completed { background: rgba(0,255,127,0.1); color: #00FF7F; }
         .badge.processing, .badge.submitting { background: rgba(255,165,0,0.1); color: orange; }
 
+        /* Progress Bar */
+        .progress-container { width: 100%; background: rgba(255,255,255,0.05); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 5px; position: relative; }
+        .progress-bar { height: 100%; background: var(--primary); width: 0%; transition: width 0.5s ease; border-radius: 4px; box-shadow: 0 0 10px var(--primary); }
+        .progress-text { font-size: 10px; color: var(--dim); margin-top: 4px; font-weight: 600; }
+
         /* Chat Panel */
         .chat-panel { width: 380px; border-left: 1px solid var(--border); background: #0D0D0F; display: flex; flex-direction: column; }
         .chat-head { padding: 25px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
@@ -172,7 +177,7 @@ HTML_UI = """
             <div class="card" style="width: 100%;">
                 <table>
                     <thead>
-                        <tr><th>TIME</th><th>FROM</th><th>SOURCE</th><th>PROJECT</th><th>STATUS</th></tr>
+                        <tr><th>TIME</th><th>FROM</th><th>SOURCE</th><th>PROJECT</th><th>STATUS / PROGRESS</th></tr>
                     </thead>
                     <tbody id="log-body"></tbody>
                 </table>
@@ -223,15 +228,29 @@ HTML_UI = """
         async function refresh() {
             const r = await fetch('/api/tasks');
             const data = await r.json();
-            document.getElementById('log-body').innerHTML = data.map(t => `
+            document.getElementById('log-body').innerHTML = data.map(t => {
+                let progress = 0;
+                if(t.status === 'completed') progress = 100;
+                else if(t.status === 'processing') progress = Math.min(95, Math.floor(Math.random() * 40) + 30); // Mocking for now
+                else if(t.status === 'submitting') progress = 15;
+                
+                return `
                 <tr>
                     <td>${t.timestamp.split(' ')[1]}</td>
                     <td>${t.sender}</td>
                     <td>${t.source}</td>
-                    <td><code>${t.project_id}</code></td>
-                    <td><span class="badge ${t.status}">${t.status}</span></td>
+                    <td><a href="${t.url}" target="_blank" style="color:var(--text-dim); text-decoration:none; font-size:11px;">${t.url.substring(0,30)}...</a><br><code>${t.project_id}</code></td>
+                    <td>
+                        <span class="badge ${t.status}">${t.status}</span>
+                        ${t.status !== 'completed' && t.status !== 'failed' ? `
+                        <div class="progress-container">
+                            <div class="progress-bar" style="width: ${progress}%"></div>
+                        </div>
+                        <div class="progress-text">Processing: ${progress}%</div>
+                        ` : ''}
+                    </td>
                 </tr>
-            `).join('');
+            `}).join('');
         }
 
         async function refreshClips() {
@@ -321,24 +340,18 @@ def webhook():
     
     data = request.json
     try:
-        msg = data["entry"][0]["changes"][0]["value"]["messages"][0]
-        sender = msg["from"]
+        msg_val = data["entry"][0]["changes"][0]["value"]["messages"][0]
+        sender = msg_val["from"]
         
-        # 1. Handle Voice Note
-        if "audio" in msg:
-            print(f"🎤 [WA-VOICE] From {sender}")
-            send_wa_message(sender, "Bhai voice note loading...")
-            # Transcription logic omitted for brevity in index.py update, 
-            # ideally kept in factory_graph or utils.
-            
         # 2. Handle Text
-        elif "text" in msg:
-            text = msg["text"]["body"]
+        if "text" in msg_val:
+            text = msg_val["text"]["body"]
             print(f"📩 [WA-MSG] {sender} said: {text}")
             reply = handle_universal(text, sender, "whatsapp")
             send_wa_message(sender, reply)
             
-    except: pass
+    except Exception as e: 
+        print(f"Webhook error: {e}")
     return "OK", 200
 
 if __name__ == "__main__":

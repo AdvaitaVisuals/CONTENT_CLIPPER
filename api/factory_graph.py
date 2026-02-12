@@ -38,17 +38,24 @@ def log_to_db(source, sender, url, project_id, status='processing'):
 
 def analyzer_node(state: AgentState):
     text = state["text"]
-    url_pattern = r'https?://[^\s<>"]+|www\.[^\s<>"]+'
-    urls = re.findall(url_pattern, text)
+    # Look specifically for video platforms
+    video_pattern = r'https?://(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/|vimeo\.com/|instagram\.com/reels?/|tiktok\.com/)[^\s<>"]+'
+    urls = re.findall(video_pattern, text)
     
-    is_clipping = any(kw in text.lower() for kw in ["clip", "cut", "banao", "bana", "video", "process", "factory", "nikal"])
+    # Fallback to any URL
+    if not urls:
+        urls = re.findall(r'https?://[^\s<>"]+', text)
+    
+    is_clipping_intent = any(kw in text.lower() for kw in ["clip", "cut", "banao", "bana", "video", "process", "factory", "nikal", "karo"])
     
     intent = "chat"
     detected_url = None
     
-    if urls and (text.startswith("/cut") or is_clipping):
-        intent = "clipping"
+    if urls:
         detected_url = urls[0]
+        # If it's just the URL or has clipping keywords, send to factory
+        if is_clipping_intent or len(text.strip()) < (len(detected_url) + 10):
+            intent = "clipping"
         
     return {"intent": intent, "url": detected_url}
 
