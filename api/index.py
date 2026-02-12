@@ -202,15 +202,27 @@ HTML_UI = """
     <aside>
         <div class="logo"><i class="fas fa-tractor"></i> BIRU ADMIN</div>
         <div class="nav">
-            <div class="nav-item active" onclick="go('dash')"><i class="fas fa-desktop"></i> Monitor</div>
-            <div class="nav-item" onclick="go('clipper')"><i class="fas fa-scissors"></i> Clipper</div>
+            <div class="nav-item active" onclick="go('factory')"><i class="fas fa-industry"></i> Factory</div>
+            <div class="nav-item" onclick="go('dash')"><i class="fas fa-desktop"></i> Monitor</div>
+            <div class="nav-item" onclick="go('clipper')"><i class="fas fa-scissors"></i> Results</div>
             <div class="nav-item" onclick="go('strat')"><i class="fas fa-magic"></i> AI Strategy</div>
-            <div class="nav-item" onclick="go('settings')"><i class="fas fa-cog"></i> Settings</div>
         </div>
     </aside>
 
     <main>
-        <div id="p-dash" class="page active">
+        <div id="p-factory" class="page active">
+            <h1>Video Factory 🏭</h1>
+            <div class="card" style="max-width: 600px;">
+                <p style="color:var(--dim); margin-bottom:15px;">Enter a YouTube URL to start the clipping engine manually.</p>
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="factory-url" placeholder="Paste YouTube Link here..." style="flex:1; padding:12px; background:rgba(0,0,0,0.3); border:1px solid var(--border); color:white; border-radius:8px;">
+                    <button onclick="submitFactory()" style="background:var(--primary); color:white; border:none; padding:12px 25px; border-radius:8px; cursor:pointer; font-weight:700;">START 🚀</button>
+                </div>
+                <div id="factory-status" style="margin-top:20px; color:#00FF7F; font-weight:600;"></div>
+            </div>
+        </div>
+
+        <div id="p-dash" class="page" style="display:none;">
             <h1>Process Monitoring Log 📡</h1>
             <div class="card" style="width: 100%;">
                 <table>
@@ -256,11 +268,36 @@ HTML_UI = """
     <script>
         function go(p) {
             document.querySelectorAll('.page').forEach(x=>x.style.display='none');
+            // Remove active from all nav items
             document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+            // Show target page
             document.getElementById('p-'+p).style.display='block';
-            event.currentTarget.classList.add('active');
+            
+            // Highlight nav item (simple hack: find by text content or index)
+            // For now, assume clicked element handles it via 'event', or we re-select based on index
+            // But since 'go' is called inline, 'event.currentTarget' works if triggered by click
+            if(window.event) window.event.currentTarget.classList.add('active');
+            
             if(p=='dash') refresh();
             if(p=='clipper') refreshClips();
+        }
+
+        async function submitFactory() {
+            const url = document.getElementById('factory-url').value;
+            if(!url) return alert("URL to daalo bhai!");
+            
+            document.getElementById('factory-status').innerText = "Working on it...";
+            
+            // We simulate a chat message "Clip this: URL"
+            const r = await fetch('/api/chat', {
+                method:'POST', 
+                headers:{'Content-Type':'application/json'}, 
+                body:JSON.stringify({message: "Clip this video: " + url})
+            });
+            const d = await r.json();
+            document.getElementById('factory-status').innerText = "✅ Started! Check Monitoring tab.";
+            document.getElementById('factory-url').value = "";
+            append(d.reply, false); // Add to chat log too
         }
 
         async function refresh() {

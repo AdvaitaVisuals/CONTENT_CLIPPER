@@ -4,7 +4,10 @@ import json
 import subprocess
 import shutil
 import imageio_ffmpeg
-from agents import UnderstandingAgent, ViralCutterAgent, FramePowerAgent, CaptionAgent
+from agents.understanding_agent import UnderstandingAgent
+from agents.viral_cutter_agent import ViralCutterAgent
+from agents.frame_power_agent import FramePowerAgent
+from agents.caption_agent import CaptionAgent
 
 # Ensure FFmpeg is in PATH for Whisper and other libraries
 ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()

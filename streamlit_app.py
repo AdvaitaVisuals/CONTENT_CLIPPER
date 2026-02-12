@@ -8,17 +8,14 @@ import imageio_ffmpeg
 import zipfile
 from io import BytesIO
 from datetime import datetime
-from agents import (
-    UnderstandingAgent, 
-    ViralCutterAgent, 
-    FramePowerAgent, 
-    CaptionAgent, 
-    TrendAgent, 
-    StrategyBrain, 
-    AutoPostingAgent,
-    VizardAgent,
-    ClipSpec
-)
+from agents.understanding_agent import UnderstandingAgent
+from agents.viral_cutter_agent import ViralCutterAgent, ClipSpec
+from agents.frame_power_agent import FramePowerAgent
+from agents.caption_agent import CaptionAgent
+from agents.trend_agent import TrendAgent
+from agents.strategy_brain import StrategyBrain
+from agents.auto_posting_agent import AutoPostingAgent
+from agents.vizard_agent import VizardAgent
 
 # --- PAGE CONFIG ---
 st.set_page_config(
