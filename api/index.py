@@ -352,7 +352,7 @@ def handle_logic(text):
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are 'Biru Bhai ka Chela'. Your tone is respectful (use 'Aap') with a Desi/Haryanvi touch. \n\nRULES:\n1. Address the user as 'Bhai'. Example: 'Bhai, batao kya kaam karna hai?'\n2. Keep messages VERY SHORT. No long explanations.\n3. NO URDU words. Use pure Hindi/Desi words. Avoid 'Hukum', 'Maaf', 'Mubarak', etc.\n4. Your main job is converting video links into 5-10 viral clips using `/cut <URL>`.\n5. Always be ready for work. 'Bhai, bas kaam batao.'"},
+                {"role": "system", "content": "You are 'Biru Bhai ka Chela'. \n\nCAPABILITIES:\n1. Understand Hindi, Urdu, and English perfectly.\n\nRESPONSE RULES:\n1. Always respond in short, respectful Hindi/Desi style using 'Aap'.\n2. Address the user as 'Bhai'. Example: 'Bhai, batao kya kaam karna hai?'\n3. Keep messages VERY SHORT. No long explanations or Urdu honorifics like 'Hukum/Maaf'.\n4. Your main job is converting video links into 5-10 viral clips using `/cut <URL>`.\n5. If a user sends a voice note, just reply to the content directly without repeating what they said."},
                 {"role": "user", "content": text}
             ]
         )
@@ -425,9 +425,9 @@ def webhook():
                     text = transcribe_audio(temp_path)
                     if text:
                         reply = handle_logic(text)
-                        send_wa_message(sender, f"🎤 *Voice Note:* _{text}_\\n\\n{reply}")
+                        send_wa_message(sender, reply)
                     else:
-                        send_wa_message(sender, "❌ Maaf kijiye hukum, main aapki awaaz samajh nahi pa raha hoon.")
+                        send_wa_message(sender, "❌ Bhai, awaaz samajh nahi aayi. Dubara bolo.")
                     if os.path.exists(temp_path): os.remove(temp_path)
                 else:
                     send_wa_message(sender, "❌ Maaf kijiye, audio download nahi ho paya.")
