@@ -370,12 +370,24 @@ class ArtistOrchestrator:
     def _download_video(self, url: str, output_dir: str) -> str:
         """Download video from YouTube/URL"""
         import subprocess
+        import sys
         output_template = os.path.join(output_dir, "%(title)s.%(ext)s")
-        command = [
-            "yt-dlp", "-f", "best[ext=mp4]/best",
-            "-o", output_template, "--no-playlist", url
+
+        # Try yt-dlp as module first (works when not on PATH), fallback to direct command
+        commands_to_try = [
+            [sys.executable, "-m", "yt_dlp", "-f", "best[ext=mp4]/best", "-o", output_template, "--no-playlist", url],
+            ["yt-dlp", "-f", "best[ext=mp4]/best", "-o", output_template, "--no-playlist", url],
         ]
-        subprocess.run(command, check=True, capture_output=True, text=True)
+
+        for command in commands_to_try:
+            try:
+                subprocess.run(command, check=True, capture_output=True, text=True)
+                break
+            except FileNotFoundError:
+                continue
+        else:
+            raise FileNotFoundError("yt-dlp not found. Install with: pip install yt-dlp")
+
         files = [os.path.join(output_dir, f) for f in os.listdir(output_dir) if f.endswith(".mp4")]
         if not files:
             raise FileNotFoundError("Download completed but no MP4 found.")

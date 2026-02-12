@@ -101,6 +101,324 @@
         </div>
     </section>
 
+    <!-- Video Processing Pipeline -->
+    <section class="pipeline-section" id="pipeline-section">
+        <h2 class="section-title">Video Processing Pipeline</h2>
+        <p class="section-desc">8-Agent AI Pipeline — from raw video to viral-ready content</p>
+
+        <!-- Pipeline Input -->
+        <div class="pipeline-input-bar">
+            <input type="text" id="pipeline-url" placeholder="Paste YouTube / video URL here...">
+            <button class="pipeline-start-btn" onclick="startPipeline()">
+                <span class="btn-icon">&#9654;</span> Run Pipeline
+            </button>
+        </div>
+
+        <!-- Pipeline Steps -->
+        <div class="pipeline-track">
+            <div class="pipeline-line"></div>
+            <div class="pipeline-line-fill" id="pipeline-fill"></div>
+
+            <div class="pipeline-step" data-step="0" id="step-0">
+                <div class="step-node">
+                    <div class="step-icon">&#11015;</div>
+                    <div class="step-ring"></div>
+                </div>
+                <div class="step-label">Download</div>
+                <div class="step-sub">yt-dlp</div>
+            </div>
+
+            <div class="pipeline-step" data-step="1" id="step-1">
+                <div class="step-node">
+                    <div class="step-icon">&#127911;</div>
+                    <div class="step-ring"></div>
+                </div>
+                <div class="step-label">Understanding</div>
+                <div class="step-sub">Whisper + Librosa</div>
+            </div>
+
+            <div class="pipeline-step" data-step="2" id="step-2">
+                <div class="step-node">
+                    <div class="step-icon">&#9986;</div>
+                    <div class="step-ring"></div>
+                </div>
+                <div class="step-label">Viral Cutter</div>
+                <div class="step-sub">FFmpeg clips</div>
+            </div>
+
+            <div class="pipeline-step" data-step="3" id="step-3">
+                <div class="step-node">
+                    <div class="step-icon">&#128248;</div>
+                    <div class="step-ring"></div>
+                </div>
+                <div class="step-label">Frame Power</div>
+                <div class="step-sub">Poster gen</div>
+            </div>
+
+            <div class="pipeline-step" data-step="4" id="step-4">
+                <div class="step-node">
+                    <div class="step-icon">&#128172;</div>
+                    <div class="step-ring"></div>
+                </div>
+                <div class="step-label">Captions</div>
+                <div class="step-sub">Hashtags + Copy</div>
+            </div>
+
+            <div class="pipeline-step" data-step="5" id="step-5">
+                <div class="step-node">
+                    <div class="step-icon">&#128200;</div>
+                    <div class="step-ring"></div>
+                </div>
+                <div class="step-label">Trends</div>
+                <div class="step-sub">Market intel</div>
+            </div>
+
+            <div class="pipeline-step" data-step="6" id="step-6">
+                <div class="step-node">
+                    <div class="step-icon">&#129504;</div>
+                    <div class="step-ring"></div>
+                </div>
+                <div class="step-label">Strategy</div>
+                <div class="step-sub">Content calendar</div>
+            </div>
+
+            <div class="pipeline-step" data-step="7" id="step-7">
+                <div class="step-node">
+                    <div class="step-icon">&#128640;</div>
+                    <div class="step-ring"></div>
+                </div>
+                <div class="step-label">Post &amp; Memory</div>
+                <div class="step-sub">Auto queue</div>
+            </div>
+        </div>
+
+        <!-- Pipeline Result Card -->
+        <div class="pipeline-result" id="pipeline-result" style="display:none;">
+            <div class="result-header">
+                <span class="result-badge" id="result-badge">COMPLETED</span>
+                <span class="result-id" id="result-id"></span>
+            </div>
+            <div class="result-stats" id="result-stats"></div>
+        </div>
+    </section>
+
+    <!-- Bot Control Section -->
+    <section class="bot-control-section" id="bot-control">
+        <h2 class="section-title">Bot Control Center</h2>
+        <p class="section-desc">Monitor, chat, and configure the AI pipeline</p>
+
+        <!-- Tab Navigation -->
+        <div class="bc-tabs">
+            <button class="bc-tab active" onclick="switchBotTab('logs', this)">
+                <span class="bc-tab-icon">&#128220;</span> Logs
+            </button>
+            <button class="bc-tab" onclick="switchBotTab('chat', this)">
+                <span class="bc-tab-icon">&#128488;</span> Chat History
+            </button>
+            <button class="bc-tab" onclick="switchBotTab('settings', this)">
+                <span class="bc-tab-icon">&#9881;</span> Settings
+            </button>
+        </div>
+
+        <!-- LOGS TAB -->
+        <div class="bc-panel active" id="bc-logs">
+            <div class="logs-toolbar">
+                <div class="log-filters">
+                    <button class="log-filter active" onclick="filterLogs('all', this)">All</button>
+                    <button class="log-filter" onclick="filterLogs('info', this)">Info</button>
+                    <button class="log-filter" onclick="filterLogs('success', this)">Success</button>
+                    <button class="log-filter" onclick="filterLogs('error', this)">Errors</button>
+                </div>
+                <button class="log-clear-btn" onclick="clearLogs()">Clear</button>
+            </div>
+            <div class="logs-container" id="logs-container">
+                <div class="log-entry info">
+                    <span class="log-time">00:00:00</span>
+                    <span class="log-badge info">SYS</span>
+                    <span class="log-msg">Biru Bhai System initialized. All agents standing by.</span>
+                </div>
+                <div class="log-entry success">
+                    <span class="log-time">00:00:01</span>
+                    <span class="log-badge success">OK</span>
+                    <span class="log-msg">WhatsApp webhook connected.</span>
+                </div>
+                <div class="log-entry info">
+                    <span class="log-time">00:00:01</span>
+                    <span class="log-badge info">SYS</span>
+                    <span class="log-msg">Vizard API key validated. Cloud engine ready.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- CHAT HISTORY TAB -->
+        <div class="bc-panel" id="bc-chat">
+            <div class="chat-history-container">
+                <div class="chat-sidebar">
+                    <div class="chat-search">
+                        <input type="text" placeholder="Search conversations..." id="chat-search-input">
+                    </div>
+                    <div class="chat-list" id="chat-list">
+                        <div class="chat-item active" onclick="selectChat(0, this)">
+                            <div class="chat-avatar">B</div>
+                            <div class="chat-preview">
+                                <div class="chat-name">Biru Kataria</div>
+                                <div class="chat-last">Clip this video bhai...</div>
+                            </div>
+                            <div class="chat-time">2m ago</div>
+                        </div>
+                        <div class="chat-item" onclick="selectChat(1, this)">
+                            <div class="chat-avatar" style="background:var(--gold);">A</div>
+                            <div class="chat-preview">
+                                <div class="chat-name">Admin (Web)</div>
+                                <div class="chat-last">Analyze trends for this week</div>
+                            </div>
+                            <div class="chat-time">1h ago</div>
+                        </div>
+                        <div class="chat-item" onclick="selectChat(2, this)">
+                            <div class="chat-avatar" style="background:#ff3d00;">W</div>
+                            <div class="chat-preview">
+                                <div class="chat-name">WhatsApp Bot</div>
+                                <div class="chat-last">Ram Ram Bhai! Video ready...</div>
+                            </div>
+                            <div class="chat-time">3h ago</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-thread">
+                    <div class="thread-header">
+                        <div class="thread-info">
+                            <div class="thread-name">Biru Kataria</div>
+                            <div class="thread-status">
+                                <div class="online-dot"></div> Online
+                            </div>
+                        </div>
+                    </div>
+                    <div class="thread-messages" id="thread-messages">
+                        <div class="thread-msg incoming">
+                            <div class="thread-bubble">Bhai ye video clip kar de: https://youtube.com/watch?v=xxx</div>
+                            <div class="thread-time">10:30 AM</div>
+                        </div>
+                        <div class="thread-msg outgoing">
+                            <div class="thread-bubble">Ram Ram Bhai! Video mil gaya. Pipeline start kar raha hun... 8 agents laga raha hun teri video pe.</div>
+                            <div class="thread-time">10:30 AM</div>
+                        </div>
+                        <div class="thread-msg outgoing">
+                            <div class="thread-bubble">Project BIRU_a3f8c1d2 shuru ho gaya. 18 clips banaye, 5 posters nikale, 15 din ka calendar ready hai.</div>
+                            <div class="thread-time">10:35 AM</div>
+                        </div>
+                        <div class="thread-msg incoming">
+                            <div class="thread-bubble">Mast bhai! Akad wale clips pehle post karna</div>
+                            <div class="thread-time">10:36 AM</div>
+                        </div>
+                    </div>
+                    <div class="thread-input">
+                        <input type="text" placeholder="Type a message..." id="thread-input-field">
+                        <button class="thread-send" onclick="sendThreadMsg()">&#10148;</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SETTINGS TAB -->
+        <div class="bc-panel" id="bc-settings">
+            <div class="settings-grid">
+                <!-- Processing Mode -->
+                <div class="setting-card">
+                    <div class="setting-header">
+                        <span class="setting-icon">&#9881;</span>
+                        <h3>Processing Engine</h3>
+                    </div>
+                    <div class="setting-body">
+                        <div class="setting-option">
+                            <label class="toggle-label">
+                                <input type="radio" name="engine" value="cloud" checked>
+                                <span class="toggle-text">Cloud (Vizard AI)</span>
+                                <span class="toggle-desc">Recommended for Vercel deployment</span>
+                            </label>
+                        </div>
+                        <div class="setting-option">
+                            <label class="toggle-label">
+                                <input type="radio" name="engine" value="local">
+                                <span class="toggle-text">Local (Full Pipeline)</span>
+                                <span class="toggle-desc">8-agent pipeline, requires FFmpeg + GPU</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- API Keys Status -->
+                <div class="setting-card">
+                    <div class="setting-header">
+                        <span class="setting-icon">&#128273;</span>
+                        <h3>API Keys</h3>
+                    </div>
+                    <div class="setting-body">
+                        <div class="key-row">
+                            <span class="key-name">VIZARD_API_KEY</span>
+                            <span class="key-status connected" id="key-vizard">Connected</span>
+                        </div>
+                        <div class="key-row">
+                            <span class="key-name">OPENAI_API_KEY</span>
+                            <span class="key-status connected" id="key-openai">Connected</span>
+                        </div>
+                        <div class="key-row">
+                            <span class="key-name">WHATSAPP_TOKEN</span>
+                            <span class="key-status connected" id="key-whatsapp">Connected</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Posting Config -->
+                <div class="setting-card">
+                    <div class="setting-header">
+                        <span class="setting-icon">&#128231;</span>
+                        <h3>Auto Posting</h3>
+                    </div>
+                    <div class="setting-body">
+                        <div class="setting-option">
+                            <label class="switch-label">
+                                <span>Approval Mode</span>
+                                <div class="switch">
+                                    <input type="checkbox" id="approval-mode" checked>
+                                    <span class="slider"></span>
+                                </div>
+                            </label>
+                            <p class="switch-desc">Require manual approval before posting</p>
+                        </div>
+                        <div class="setting-option">
+                            <label class="switch-label">
+                                <span>WhatsApp Notifications</span>
+                                <div class="switch">
+                                    <input type="checkbox" id="wa-notif" checked>
+                                    <span class="slider"></span>
+                                </div>
+                            </label>
+                            <p class="switch-desc">Send status updates via WhatsApp</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Emotion Config -->
+                <div class="setting-card">
+                    <div class="setting-header">
+                        <span class="setting-icon">&#127917;</span>
+                        <h3>Content Vibes</h3>
+                    </div>
+                    <div class="setting-body">
+                        <div class="vibe-tags">
+                            <span class="vibe-tag active" data-vibe="akad">Akad</span>
+                            <span class="vibe-tag active" data-vibe="dard">Dard</span>
+                            <span class="vibe-tag active" data-vibe="pyaar">Pyaar</span>
+                            <span class="vibe-tag" data-vibe="gaon_pride">Gaon Pride</span>
+                            <span class="vibe-tag" data-vibe="mauj">Mauj</span>
+                        </div>
+                        <p class="switch-desc" style="margin-top:12px;">Select active vibes for content tagging</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Viral Clips Section -->
     <section>
         <h2 class="section-title">Generated Viral Clips</h2>
