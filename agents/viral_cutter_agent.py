@@ -1,8 +1,6 @@
-import ffmpeg
 from dataclasses import dataclass
 from typing import List, Optional, Dict
 import os
-import imageio_ffmpeg
 
 @dataclass
 class ClipSpec:
@@ -23,8 +21,15 @@ class ViralCutterAgent:
             "facebook_reel": {"duration": (15, 30), "aspect": "9:16"},
             "story": {"duration": (5, 15), "aspect": "9:16"}
         }
-        self.ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
         
+        # Lazy load dependencies
+        try:
+            import imageio_ffmpeg
+            self.ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+        except ImportError:
+            self.ffmpeg_path = "ffmpeg"  # Normal system ffmpeg as fallback
+            print("ViralCutterAgent: imageio_ffmpeg not found, using 'ffmpeg'")
+            
     def generate_clip_specs(self, understanding_data: dict) -> List[ClipSpec]:
         """Analysis se clip specifications generate karo"""
         clips = []
