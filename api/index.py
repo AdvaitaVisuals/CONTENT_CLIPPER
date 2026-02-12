@@ -36,24 +36,35 @@ WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 PHONE_ID = os.environ.get("PHONE_ID")
 VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN", "bot")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-VIZARD_API_KEY = os.environ.get("VIZARD_API_KEY")
+VIZARD_API_KEY = os.environ.get("VIZARD_API_KEY", "9658587d3d6045a492268e512f5e5577") # Default or Env
 
-DB_PATH = 'biru_factory.db'
+DB_PATH = '/tmp/biru_factory.db' if os.environ.get("VERCEL") else 'biru_factory.db'
 
 # --- DB HELPERS ---
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT, sender TEXT, url TEXT, project_id TEXT, status TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, clips_json TEXT)''')
+    # Check if table exists
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'")
+    if not cursor.fetchone():
+        cursor.execute('''CREATE TABLE tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT, sender TEXT, url TEXT, project_id TEXT, status TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, clips_json TEXT, provider TEXT, external_id TEXT)''')
+    else:
+        # Migration for existing tables
+        try: cursor.execute("ALTER TABLE tasks ADD COLUMN provider TEXT")
+        except: pass
+        try: cursor.execute("ALTER TABLE tasks ADD COLUMN external_id TEXT")
+        except: pass
     conn.commit()
     conn.close()
 
-def update_db_task(project_id, status, clips=None):
+def update_db_task(project_id, status, clips=None, provider=None, external_id=None):
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         if clips:
             cursor.execute("UPDATE tasks SET status=?, clips_json=? WHERE project_id=?", (status, json.dumps(clips), project_id))
+        elif provider and external_id:
+            cursor.execute("UPDATE tasks SET status=?, provider=?, external_id=? WHERE project_id=?", (status, provider, external_id, project_id))
         else:
             cursor.execute("UPDATE tasks SET status=? WHERE project_id=?", (status, project_id))
         conn.commit()
@@ -62,17 +73,43 @@ def update_db_task(project_id, status, clips=None):
 
 init_db()
 
+# --- VIZARD PROCESSING (CLOUD) ---
+def run_vizard_processor(project_id, url, sender):
+    print(f"☁️ [FACTORY] Submitting to Vizard AI: {project_id}")
+    try:
+        from agents.vizard_agent import VizardAgent
+        agent = VizardAgent(api_key=VIZARD_API_KEY)
+        
+        # Submit to Vizard
+        vizard_id = agent.submit_video(url)
+        
+        if vizard_id:
+            print(f"✅ [VIZARD] Submitted. ID: {vizard_id}")
+            # We update DB with "processing" and the external ID
+            # IMPORTANT: We cannot poll here if on Vercel because of timeout.
+            # We rely on the Frontend to hit /api/sync_vizard
+            update_db_task(project_id, "processing", provider="vizard", external_id=vizard_id)
+        else:
+            print(f"❌ [VIZARD] Failed to submit.")
+            update_db_task(project_id, "failed")
+            
+    except Exception as e:
+        print(f"❌ [VIZARD ERROR] {e}")
+        update_db_task(project_id, "failed")
+
 # --- LOCAL PROCESSING LOGIC ---
 def run_local_processor(project_id, url, sender):
     print(f"🚜 [FACTORY] Starting Local Engine for Project: {project_id}")
-    update_db_task(project_id, "processing")
+    update_db_task(project_id, "processing", provider="local")
     
     try:
-        # We run the process_video.py as a subprocess to keep it clean
-        # Output will be in output/reels
+        if os.environ.get("VERCEL"):
+            # Local engine cannot run on Vercel
+            print("❌ [FAIL] Cannot run Local Engine on Vercel (Time/Memory Limit). Use Vizard Mode.")
+            update_db_task(project_id, "failed")
+            return
+
         import subprocess
-        
-        # We create a TEMP directory for this project to avoid collisions if multiple tasks
         work_dir = f"output_{project_id}"
         os.makedirs(work_dir, exist_ok=True)
         
@@ -80,43 +117,31 @@ def run_local_processor(project_id, url, sender):
         print(f"🏃 [RUNNING]: {' '.join(cmd)}")
         
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        
-        # Feed progress to console but also keep moving
         stdout, stderr = process.communicate()
         
         if process.returncode == 0:
             print(f"✅ [DONE] Project {project_id} finished successfully.")
-            
-            # Check for clips in reels folder
             reels_dir = os.path.join(work_dir, "reels")
             clips = []
             if os.path.exists(reels_dir):
                 for f in os.listdir(reels_dir):
                     if f.endswith(".mp4"):
-                        # In the real world, we'd need to serve this file via ngrok/public URL
-                        # For now, we simulate the structure
-                        clips.append({
-                            "title": f,
-                            "videoUrl": f"/outputs/{project_id}/{f}" # Mock URL
-                        })
+                         clips.append({"title": f, "videoUrl": f"/outputs/{project_id}/{f}"})
             
             update_db_task(project_id, "completed", clips=clips)
-            
             if sender and sender != "Admin_Web":
-                send_wa_message(sender, f"✅ **Bhai, factory ka maal ready hai!** (Local Engine)\nClips generate ho gayi hain. Dashboard check karo.")
+                send_wa_message(sender, f"✅ **Bhai, factory ka maal ready hai!**\nClips generate ho gayi hain.")
         else:
             print(f"❌ [FAIL] Project {project_id} error: {stderr}")
             update_db_task(project_id, "failed")
-            if sender and sender != "Admin_Web":
-                send_wa_message(sender, "❌ Bhai, factory mein error aa gaya. Local logs check karo.")
 
     except Exception as e:
         print(f"❌ [CORE ERROR] {e}")
         update_db_task(project_id, "failed")
 
-def poll_and_send_clips(project_id, sender, url=None):
-    # This is a wrapper for the local processor now
-    thread = threading.Thread(target=run_local_processor, args=(project_id, url, sender))
+def start_processing_thread(project_id, sender, url, use_cloud=False):
+    target = run_vizard_processor if use_cloud else run_local_processor
+    thread = threading.Thread(target=target, args=(project_id, url, sender))
     thread.daemon = True
     thread.start()
 
@@ -127,8 +152,47 @@ def send_wa_message(to, text):
     payload = {"messaging_product": "whatsapp", "to": to, "type": "text", "text": {"body": text}}
     requests.post(url, headers=headers, json=payload)
 
-# --- CORE HANDLER (LANGRAPH) ---
-def handle_universal(text, sender, source):
+@app.route("/api/sync_vizard/<project_id>", methods=["GET"])
+def sync_vizard(project_id):
+    """Called by frontend to check status of Vizard tasks"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM tasks WHERE project_id=?", (project_id,))
+        task = cur.fetchone()
+        conn.close()
+        
+        if not task or task['provider'] != 'vizard' or task['status'] == 'completed':
+            return jsonify({"status": task['status'] if task else "unknown"})
+            
+        # Check Vizard
+        from agents.vizard_agent import VizardAgent
+        agent = VizardAgent(api_key=VIZARD_API_KEY)
+        v_status = agent.status_check(task['external_id'])
+        
+        if v_status == "completed":
+            v_clips = agent.get_clips(task['external_id'])
+            # Map to our format
+            clips = []
+            for c in v_clips:
+                clips.append({
+                    "title": c.get("headline", "Vizard Clip"),
+                    "videoUrl": c.get("videoUrl") # Vizard gives direct cloud URLs
+                })
+            update_db_task(project_id, "completed", clips=clips)
+            return jsonify({"status": "completed", "clips": clips})
+        elif v_status == "failed":
+            update_db_task(project_id, "failed")
+            return jsonify({"status": "failed"})
+            
+        return jsonify({"status": "processing_remote"})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# --- CORE HANDLER ---
+def handle_universal(text, sender, source, use_cloud=False):
     # RUN LANGRAPH AGENT
     output = run_factory_agent(text, sender, source)
     
@@ -136,11 +200,12 @@ def handle_universal(text, sender, source):
     project_id = output.get("project_id")
     url = output.get("url")
     
-    # If a new project was started, trigger local processor
+    # If a new project was started
     if project_id:
-        poll_and_send_clips(project_id, sender, url)
+        if use_cloud:
+            response += "\n\n(☁️ Using Cloud Engine - Vizard AI)"
+        start_processing_thread(project_id, sender, url, use_cloud)
     
-    # Also log to terminal
     print(f"🤖 [CHELA]: {response}")
     return response
 
@@ -231,10 +296,14 @@ HTML_UI = """
         <div id="p-factory" class="page active">
             <h1>Video Factory 🏭</h1>
             <div class="card" style="max-width: 800px;">
-                <p style="color:var(--dim); margin-bottom:15px;">Paste a YouTube link to start the Local Clipping Engine.</p>
-                <div style="display:flex; gap:10px;">
+                <p style="color:var(--dim); margin-bottom:15px;">Paste a YouTube link to start the Clipping Engine.</p>
+                <div style="display:flex; gap:10px; margin-bottom:10px;">
                     <input type="text" id="factory-url" placeholder="https://youtube.com/watch?v=..." style="flex:1; padding:12px; background:rgba(0,0,0,0.3); border:1px solid var(--border); color:white; border-radius:8px;">
                     <button onclick="submitFactory()" style="background:var(--primary); color:white; border:none; padding:12px 25px; border-radius:8px; cursor:pointer; font-weight:700;">START 🚀</button>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <input type="checkbox" id="use-cloud"> 
+                    <label for="use-cloud" style="color:var(--dim); font-size:14px; cursor:pointer;">Use Cloud Engine (Vizard AI) - <b>Recommended for Vercel</b></label>
                 </div>
                 <div id="factory-status" style="margin-top:20px; color:#00FF7F; font-weight:600;"></div>
             </div>
@@ -311,36 +380,48 @@ HTML_UI = """
 
         async function submitFactory() {
             const url = document.getElementById('factory-url').value;
+            const useCloud = document.getElementById('use-cloud').checked;
+            
             if(!url) return alert("URL to daalo bhai!");
             
-            document.getElementById('factory-status').innerText = "Working on it...";
+            document.getElementById('factory-status').innerText = "Starting Engine... 🚜";
             
-            // We simulate a chat message "Clip this: URL"
             const r = await fetch('/api/chat', {
                 method:'POST', 
                 headers:{'Content-Type':'application/json'}, 
-                body:JSON.stringify({message: "Clip this video: " + url})
+                body:JSON.stringify({
+                    message: "Clip this video: " + url,
+                    use_cloud: useCloud
+                })
             });
             const d = await r.json();
             document.getElementById('factory-status').innerText = "✅ Started! Check Monitoring tab.";
             document.getElementById('factory-url').value = "";
-            append(d.reply, false); // Add to chat log too
+            append(d.reply, false); 
         }
 
         async function refresh() {
             const r = await fetch('/api/tasks');
             const data = await r.json();
+            
+            // Client-Side Polling for Vizard (Serverless Fix)
+            data.forEach(t => {
+                if(t.status === 'processing' && t.provider === 'vizard') {
+                    fetch('/api/sync_vizard/' + t.project_id); // Fire and forget
+                }
+            });
+
             document.getElementById('log-body').innerHTML = data.map(t => {
                 let progress = 0;
                 if(t.status === 'completed') progress = 100;
-                else if(t.status === 'processing') progress = Math.min(95, Math.floor(Math.random() * 40) + 30); // Mocking for now
+                else if(t.status === 'processing') progress = 45; 
                 else if(t.status === 'submitting') progress = 15;
                 
                 return `
                 <tr>
                     <td>${t.timestamp.split(' ')[1]}</td>
                     <td>${t.sender}</td>
-                    <td>${t.source}</td>
+                    <td>${t.provider ? t.provider.toUpperCase() : 'LOCAL'}</td>
                     <td><a href="${t.url}" target="_blank" style="color:var(--text-dim); text-decoration:none; font-size:11px;">${t.url.substring(0,30)}...</a><br><code>${t.project_id}</code></td>
                     <td>
                         <span class="badge ${t.status}">${t.status}</span>
@@ -348,7 +429,6 @@ HTML_UI = """
                         <div class="progress-container">
                             <div class="progress-bar" style="width: ${progress}%"></div>
                         </div>
-                        <div class="progress-text">Processing: ${progress}%</div>
                         ` : ''}
                     </td>
                 </tr>
@@ -435,7 +515,8 @@ def get_tasks():
 @app.route("/api/chat", methods=["POST"])
 def chat():
     data = request.json
-    reply = handle_universal(data.get("message", ""), "Admin_Web", "web")
+    use_cloud = data.get("use_cloud", False)
+    reply = handle_universal(data.get("message", ""), "Admin_Web", "web", use_cloud=use_cloud)
     return jsonify({"reply": reply})
 
 @app.route("/webhook", methods=["GET", "POST"])
