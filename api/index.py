@@ -357,25 +357,6 @@ HTML_UI = """
         </div>
     </aside>
 
-    <div id="chat-trigger" onclick="toggleChat()"><i class="fas fa-comment-dots"></i></div>
-
-    <div class="chat-panel" id="chat-win">
-        <div class="chat-head">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <div style="width:8px; height:8px; background:#00FF7F; border-radius:50%; box-shadow:0 0 10px #00FF7F;"></div>
-                <span style="font-weight:700;">Biru ka Chela</span>
-            </div>
-            <i class="fas fa-times" onclick="toggleChat()" style="cursor:pointer; opacity:0.5;"></i>
-        </div>
-        <div class="chat-msgs" id="chat-msgs">
-            <div class="msg ai">Ram Ram Bhai! Monitoring space badha di hai, ab tasks saaf dikhenge!</div>
-        </div>
-        <div class="chat-input">
-            <input type="text" id="chat-in" placeholder="Type command..." onkeypress="if(event.key=='Enter')send()">
-            <button onclick="send()" style="background:none; border:none; color:white; cursor:pointer;"><i class="fas fa-paper-plane"></i></button>
-        </div>
-    </div>
-
     <!-- MAIN CONTENT AREA -->
     <main>
         <!-- FACTORY PAGE -->
@@ -604,6 +585,28 @@ HTML_UI = """
         refresh();
         refreshChats();
     </script>
+
+    <!-- FLOATING CHATBOT UI -->
+    <div id="chat-trigger" onclick="toggleChat()" style="position:fixed; bottom:30px; right:30px; width:60px; height:60px; background:var(--primary); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:24px; cursor:pointer; box-shadow:0 10px 30px rgba(255,61,0,0.3); z-index:9999;">
+        <i class="fas fa-comment-dots"></i>
+    </div>
+
+    <div id="chat-win" style="position:fixed; bottom:100px; right:30px; width:380px; height:500px; background:#0D0D0F; border:1px solid var(--border); border-radius:20px; display:none; flex-direction:column; z-index:9998; box-shadow:0 20px 50px rgba(0,0,0,0.6); overflow:hidden;">
+        <div class="chat-head" style="padding:20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.02);">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div style="width:8px; height:8px; background:#00FF7F; border-radius:50%; box-shadow:0 0 10px #00FF7F;"></div>
+                <span style="font-weight:700;">Biru ka Chela</span>
+            </div>
+            <i class="fas fa-times" onclick="toggleChat()" style="cursor:pointer; opacity:0.5;"></i>
+        </div>
+        <div class="chat-msgs" id="chat-msgs" style="flex:1; padding:20px; overflow-y:auto; display:flex; flex-direction:column; gap:12px;">
+            <div class="msg ai">Ram Ram Bhai! Main yahan hun. Kuch poocho?</div>
+        </div>
+        <div class="chat-input" style="padding:15px; border-top:1px solid var(--border); display:flex; gap:10px;">
+            <input type="text" id="chat-in" placeholder="Type command..." style="flex:1; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:white; padding:10px; border-radius:8px; outline:none;" onkeypress="if(event.key=='Enter')send()">
+            <button onclick="send()" style="background:none; border:none; color:white; cursor:pointer;"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
 </body>
 </html>
 """
