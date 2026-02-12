@@ -26,12 +26,12 @@ if os.environ.get("VERCEL"):
 else:
     DB_PATH = 'biru_factory.db'
 
-def log_to_db(source, sender, url, project_id, status='processing'):
+def log_to_db(source, sender, url, project_id, status='processing', provider=None):
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO tasks (source, sender, url, project_id, status) VALUES (?, ?, ?, ?, ?)", 
-                       (source, sender, url, project_id, status))
+        cursor.execute("INSERT INTO tasks (source, sender, url, project_id, status, provider) VALUES (?, ?, ?, ?, ?, ?)", 
+                       (source, sender, url, project_id, status, provider))
         conn.commit()
         conn.close()
     except: pass

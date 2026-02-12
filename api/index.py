@@ -64,14 +64,28 @@ def update_db_task(project_id, status, clips=None, provider=None, external_id=No
         
         final_status = status
         if error_msg:
-            final_status = f"{status}: {str(error_msg)[:50]}" # Truncate error
+            final_status = f"failed: {str(error_msg)[:100]}"
             
-        if clips:
-            cursor.execute("UPDATE tasks SET status=?, clips_json=? WHERE project_id=?", (final_status, json.dumps(clips), project_id))
-        elif provider and external_id:
-            cursor.execute("UPDATE tasks SET status=?, provider=?, external_id=? WHERE project_id=?", (final_status, provider, external_id, project_id))
-        else:
-            cursor.execute("UPDATE tasks SET status=? WHERE project_id=?", (final_status, project_id))
+        # Dynamically build the UPDATE query
+        fields = ["status=?"]
+        params = [final_status]
+        
+        if clips is not None:
+            fields.append("clips_json=?")
+            params.append(json.dumps(clips))
+        
+        if provider:
+            fields.append("provider=?")
+            params.append(provider)
+            
+        if external_id:
+            fields.append("external_id=?")
+            params.append(external_id)
+            
+        params.append(project_id)
+        query = f"UPDATE tasks SET {', '.join(fields)} WHERE project_id=?"
+        
+        cursor.execute(query, params)
         conn.commit()
         conn.close()
     except Exception as e: print(f"❌ [DB UPDATE ERROR] {e}")
@@ -170,7 +184,7 @@ def send_wa_message(to, text):
 
 @app.route("/api/sync_vizard/<project_id>", methods=["GET"])
 def sync_vizard(project_id):
-    """Called by frontend to check status of Vizard tasks"""
+    """Checks Vizard status, updates DB, and notifies WhatsApp if needed."""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
@@ -196,7 +210,17 @@ def sync_vizard(project_id):
                     "videoUrl": c.get("videoUrl", ""),
                     "viralScore": c.get("viralScore", "")
                 })
+            
             update_db_task(project_id, "completed", clips=clips)
+            
+            # --- WHATSAPP NOTIFICATION ---
+            if task['source'] == 'whatsapp' and task['sender']:
+                msg = f"✅ *Factory Task Complete!* (Project: {project_id})\n\n"
+                msg += f"Bhai, Vizard ne {len(clips)} clips bana di hain. View karne ke liye dashboard pe jao ya ye download link dekho:\n"
+                if clips:
+                    msg += f"📥 Top Clip: {clips[0]['videoUrl']}"
+                send_wa_message(task['sender'], msg)
+            
             return jsonify({"status": "completed", "clips": clips})
         elif v_status == "error":
             update_db_task(project_id, "failed", error_msg="Vizard processing error")
@@ -205,6 +229,7 @@ def sync_vizard(project_id):
         return jsonify({"status": "processing_remote"})
         
     except Exception as e:
+        print(f"❌ [SYNC ERROR] {e}")
         return jsonify({"error": str(e)}), 500
 
 # --- CORE HANDLER ---
@@ -233,17 +258,18 @@ def handle_universal(text, sender, source, use_cloud=False):
                 # VERCEL FIX: Run Synchronously! Background threads die instantly on Serverless.
                 print("⚡ [VERCEL] Running Vizard Submission Synchronously...")
                 # Update status with current response for the logger
-                update_db_task(project_id, response) 
+                update_db_task(project_id, response, provider="vizard") 
                 run_vizard_processor(project_id, url, sender)
             else:
+                update_db_task(project_id, "submitting", provider="vizard")
                 start_processing_thread(project_id, sender, url, use_cloud)
         else:
             if os.environ.get("VERCEL"):
                 response += "\n\n⚠️ Local Engine blocked on Vercel. Using Cloud."
-                update_db_task(project_id, response)
+                update_db_task(project_id, response, provider="vizard")
                 run_vizard_processor(project_id, url, sender)
             else:
-                response += "\n\n(🚜 Using Local Engine)"
+                update_db_task(project_id, "submitting", provider="local")
                 start_processing_thread(project_id, sender, url, use_cloud=False)
     
     print(f"🤖 [{source}] replying to {sender}: {response[:50]}...")
@@ -573,8 +599,20 @@ def get_tasks():
         cursor.execute("SELECT * FROM tasks ORDER BY timestamp DESC LIMIT 30")
         data = [dict(row) for row in cursor.fetchall()]
         conn.close()
+        
+        # PROACTIVE SYNC: Trigger Vizard check if needed
+        # Since we're in a browser polling loop, we can trigger background syncs
+        import requests
+        for t in data:
+            status_clean = str(t['status']).split(':')[0].lower()
+            if t['provider'] == 'vizard' and status_clean not in ('completed', 'failed'):
+                 # Check locally if it's running 
+                 threading.Thread(target=requests.get, args=(f"http://localhost:5000/api/sync_vizard/{t['project_id']}",)).start()
+
         return jsonify(data)
-    except: return jsonify([])
+    except Exception as e:
+        print(f"Error in get_tasks: {e}")
+        return jsonify([])
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
