@@ -329,8 +329,53 @@ def send_wa_message(to, text):
     requests.post(url, headers=headers, json=payload)
 
 import re
+import threading
+import time
 
-def handle_logic(text):
+def poll_and_send_clips(project_id, sender):
+    """Background thread to poll Vizard and send updates to WhatsApp"""
+    vizard = VizardAgent(api_key=VIZARD_API_KEY)
+    max_attempts = 40 # ~10 mins max polling
+    attempts = 0
+    
+    # Send initial loading signal
+    send_wa_message(sender, "🔍 Bhai, video ki scanning start ho gayi hai...")
+    
+    while attempts < max_attempts:
+        time.sleep(15) # Poll every 15 seconds
+        attempts += 1
+        
+        status = vizard.status_check(project_id)
+        
+        if status == "completed":
+            clips = vizard.get_clips(project_id)
+            if clips:
+                send_wa_message(sender, f"✅ **Bhai, Mal ready hai!** Total {len(clips)} clips mile hain. Ek-ek karke bhej raha hoon...")
+                for i, clip in enumerate(clips):
+                    title = clip.get("title", f"Clip #{i+1}")
+                    url = clip.get("videoUrl", "")
+                    duration = clip.get("duration", "N/A")
+                    msg = f"🎥 **Clip {i+1}:** {title}\n⏱️ Samay: {duration}s\n🔗 Link: {url}"
+                    send_wa_message(sender, msg)
+                    time.sleep(2) # Prevent spam blocking
+                send_wa_message(sender, "🦾 Bhai, saari clips bhej di hain. Maze lo!")
+                return
+            else:
+                send_wa_message(sender, "❌ Bhai, clips nahi mil payin. Shayad video mein clips layak kuch nahi tha.")
+                return
+        
+        elif status == "failed":
+            send_wa_message(sender, "❌ Bhai, factory mein fault aa gaya. Vizard ne project fail kar diya.")
+            return
+            
+        else:
+            # Send 'Loading' update every 2 attempts (~30s)
+            if attempts % 2 == 0:
+                send_wa_message(sender, f"⏳ Bhai, loading... ({attempts*15} seconds ho gaye hain)")
+
+    send_wa_message(sender, "⚠️ Bhai, processing mein bohot time lag raha hai. Aap Dashboard pe check kar lena baad mein.")
+
+def handle_logic(text, sender=None):
     # Regex for URL detection
     url_pattern = r'https?://[^\s<>"]+|www\.[^\s<>"]+'
     urls = re.findall(url_pattern, text)
@@ -341,12 +386,19 @@ def handle_logic(text):
         if not VIZARD_API_KEY:
             return "❌ Bhai, Vizard API Key nahi mil rahi. Admin se bolo."
         
-        url = urls[0] # Take the first URL found
+        url = urls[0]
         try:
             vizard = VizardAgent(api_key=VIZARD_API_KEY)
             project_id = vizard.submit_video(url)
             if project_id:
-                return f"🚀 **Bhai, factory shuru kar di hai!**\n\nAapka video process hone ke liye bhej diya hai.\n**Project ID:** `{project_id}`\n\nClips bante hi aapko dashboard ya WhatsApp pe update mil jayega."
+                # START BACKGROUND POLLING FOR WHATSAPP USERS
+                if sender:
+                    thread = threading.Thread(target=poll_and_send_clips, args=(project_id, sender))
+                    thread.daemon = True
+                    thread.start()
+                    return f"🚀 **Bhai, factory shuru kar di hai!**\n\nProject ID: `{project_id}`\nMain aapko yahan ek-ek karke clips bhej rha hu."
+                else:
+                    return f"🚀 **Bhai, factory shuru kar di hai!**\n\nProject ID: `{project_id}`\nDashboard reload karte rehna, clips wahan dikh jayenge."
             else:
                 return "❌ Bhai, link bhenjne mein dikakat aayi hai. Dubara try karo."
         except Exception as e:
@@ -401,7 +453,7 @@ def index():
 @app.route("/api/chat", methods=["POST"])
 def web_chat():
     data = request.json
-    reply = handle_logic(data.get("message", ""))
+    reply = handle_logic(data.get("message", ""), sender=None)
     return jsonify({"reply": reply})
 
 @app.route("/webhook", methods=["GET", "POST"])
@@ -431,7 +483,7 @@ def webhook():
                     download_media(media_url, temp_path)
                     text = transcribe_audio(temp_path)
                     if text:
-                        reply = handle_logic(text)
+                        reply = handle_logic(text, sender=sender)
                         send_wa_message(sender, reply)
                     else:
                         send_wa_message(sender, "❌ Bhai, awaaz samajh nahi aayi. Dubara bolo.")
@@ -442,7 +494,7 @@ def webhook():
             # 2. HANDLE TEXT
             elif "text" in msg:
                 text = msg.get("text", {}).get("body", "")
-                reply = handle_logic(text)
+                reply = handle_logic(text, sender=sender)
                 send_wa_message(sender, reply)
     except Exception as e: 
         print(f"Webhook Error: {e}")
