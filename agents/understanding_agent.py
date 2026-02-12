@@ -48,6 +48,8 @@ class UnderstandingAgent:
         
     def extract_audio(self, video_path: str) -> str:
         """FFmpeg se audio extract"""
+        import subprocess
+        
         if not os.path.exists(video_path):
             raise FileNotFoundError(f"Video file not found: {video_path}")
             
