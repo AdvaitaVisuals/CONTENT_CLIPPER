@@ -4,10 +4,8 @@ import json
 from typing import TypedDict, List, Optional
 from langgraph.graph import StateGraph, END
 from openai import OpenAI
-try:
-    from .vizard_agent import VizardAgent
-except ImportError:
-    from vizard_agent import VizardAgent
+# from .vizard_agent import VizardAgent - Removed unused/broken import
+
 import sqlite3
 
 # --- STATE DEFINITION ---
